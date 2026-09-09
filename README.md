@@ -1,17 +1,21 @@
-# cesta_basica_lopez_mobile
+# Cesta Básica Lopez
 
-A new Flutter project.
+App mobile Flutter para gestão de vendas porta a porta.
+Projeto Integrador III — Faculdade Donaduzzi — Grupo 01
 
-## Getting Started
+## Stack
+Flutter · Firebase (Auth, Firestore, Storage) · Riverpod
 
-This project is a starting point for a Flutter application.
+## Rodando
+1. flutter pub get
+2. Solicite os arquivos de configuração do Firebase
+3. flutter run
 
-A few resources to get you started if this is your first Flutter project:
+## Estrutura
+lib/core      — tema, constantes, widgets compartilhados
+lib/features  — módulos, cada um com data/domain/presentation
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Branches
+main     — versão estável
+develop  — integração; toda feature entra por PR
+feature/kan-XX-descricao
