@@ -2,7 +2,7 @@
 
 **Projeto:** Sistema de Força de Vendas — Cesta Básica Lopez
 **Projeto Integrador III — Faculdade Donaduzzi — Grupo 01**
-**Versão:** 1.1 · Sprint 2
+**Versão:** 1.2 · Sprint 2
 **Referência:** Levantamento de Requisitos v01, ADR 001, ADR 002
 
 ---
@@ -339,6 +339,7 @@ Agenda do vendedor: cliente a ser atendido em determinada data (RF08, RF09).
 |---|---|---|
 | id | uuid | PK |
 | clienteId | uuid | FK para CLIENTE |
+| clienteNome | string | Nome do cliente duplicado, evita busca ao montar a agenda do dia (seção 6) |
 | rotaId | uuid | FK para ROTA |
 | vendaId | uuid | FK para VENDA, preenchido se resultou em venda |
 | dataPrevista | date | Data planejada da visita |
@@ -383,6 +384,7 @@ Produto e quantidade dentro de uma venda.
 | id | uuid | PK — necessário para referência em TROCA_ITEM |
 | vendaId | uuid | FK para VENDA |
 | produtoId | uuid | FK para PRODUTO |
+| nome | string | Nome do produto duplicado, evita busca ao exibir os itens da venda (seção 6) |
 | quantidade | int | Unidades vendidas |
 | precoUnitario | decimal | Preço praticado no momento da venda |
 | custoUnitario | decimal | Custo do produto no momento da venda, para apuração de margem (RF27) |
@@ -396,6 +398,7 @@ Registro de substituição de produto em venda já concluída (RF25), preservand
 | vendaId | uuid | FK para VENDA |
 | itemOriginalId | uuid | FK para ITEM_VENDA substituído |
 | produtoNovoId | uuid | FK para PRODUTO entregue em substituição |
+| produtoNovoNome | string | Nome do produto novo duplicado, evita busca ao exibir a troca (seção 6) |
 | quantidade | int | Unidades trocadas |
 | diferencaValor | decimal | Diferença de preço, quando houver |
 | data | datetime | Momento da troca |
@@ -436,6 +439,7 @@ Entrada, saída ou troca de produto (RF22, RF23, RF25).
 | quantidade | int | Unidades movimentadas |
 | custoUnitario | decimal | Custo de aquisição, preenchido nos movimentos de entrada |
 | data | datetime | Momento do movimento |
+| vendedorUid | string | FK para USUARIO, registra quem lançou o movimento (seção 6) |
 
 ### DESPESA
 Gasto lançado pelo vendedor, ex. combustível (RF27, RF29).
@@ -450,12 +454,17 @@ Gasto lançado pelo vendedor, ex. combustível (RF27, RF29).
 
 ### Atributos comuns
 
-Todas as entidades possuem, além dos atributos listados:
+Todas as entidades que originam coleção ou subcoleção própria possuem, além
+dos atributos listados:
 
 | Atributo | Tipo | Descrição |
 |---|---|---|
 | updatedAt | datetime | Última alteração, usada na resolução de conflitos |
 | deleted | bool | Exclusão lógica — exclusão física quebra a sincronização offline |
+
+As estruturas embutidas — ITEM_VENDA, TROCA_ITEM e PAGAMENTO — não possuem
+esses atributos: não constituem documentos independentes e acompanham o
+ciclo de vida e a sincronização do documento que as contém.
 
 ---
 
@@ -508,6 +517,16 @@ O banco adotado é o Cloud Firestore, orientado a documentos. O modelo lógico a
 | ROTA 1:N VISITA | Campo `rotaId` no documento da visita | Referência simples por identificador |
 | PRODUTO 1:N MOVIMENTO_ESTOQUE | Coleção raiz `movimentosEstoque` | Saldo é derivado dos movimentos, não de campo sobrescrito |
 | USUARIO | Coleção `usuarios/{uid}` vinculada ao Firebase Auth | O identificador é o UID do Auth, não um UUID gerado |
+| ITEM_VENDA → PRODUTO | Campo `produtoId` mais `nome` duplicado | Evita busca do produto ao exibir os itens da venda |
+| TROCA_ITEM → PRODUTO | Campo `produtoNovoId` mais `produtoNovoNome` duplicado | Mesma razão |
+| VISITA → CLIENTE | Campo `clienteId` mais `clienteNome` duplicado | Evita busca por cliente ao montar a agenda do dia |
+| MOVIMENTO_ESTOQUE → USUARIO | Campo `vendedorUid` | Rastreia quem registrou o movimento, necessário à apuração por linha de atendimento |
+
+Estruturas embutidas em documentos — ITEM_VENDA, TROCA_ITEM e PAGAMENTO —
+dispensam a chave estrangeira do elemento pai, uma vez que o próprio
+documento que as contém já estabelece o vínculo. Os atributos `vendaId` e
+`parcelaId` previstos no modelo lógico não são materializados nessas
+estruturas.
 
 ### Coleções resultantes
 
@@ -587,3 +606,4 @@ As entidades CLIENTE e VENDA armazenam dados pessoais (CPF, endereço, telefone 
 |---|---|---|
 | 10/09/2026 | 1.0 | Versão inicial do modelo lógico, elaborada na Sprint 2 a partir do Levantamento de Requisitos v01 e do ADR 001. |
 | 16/09/2026 | 1.1 | Aplicação do ADR 002: identificação por CPF confirmada; PROMISSORIA convertida em visão derivada; inclusão de `custoAtual`, `custoUnitario` e apuração de lucro real; entidade TROCA_ITEM criada; atributo `id` acrescentado a ITEM_VENDA; `fiado` removido das formas de pagamento e `formaPagamento` tornada opcional; `proximoVencimento` e `valorEmAberto` acrescentados a CLIENTE; `numeroNota` acrescentado a VENDA; documento `configuracoes/geral` previsto. |
+| 16/09/2026 | 1.2 | Ajustes de documentação decorrentes da implementação: escopo dos atributos comuns restrito às entidades com coleção própria; registro das desnormalizações de `ITEM_VENDA.nome`, `TROCA_ITEM.produtoNovoNome`, `VISITA.clienteNome` e `MOVIMENTO_ESTOQUE.vendedorUid`; nota sobre ausência de chave estrangeira em estruturas embutidas. |
