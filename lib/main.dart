@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'core/navigation/app_routes.dart';
+import 'core/navigation/main_shell.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/showcase_screen.dart';
+import 'features/venda/presentation/nova_venda_screen.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -29,11 +32,17 @@ class CestaBasicaApp extends StatelessWidget {
       title: 'Cesta Básica Lopez',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      // Vitrine dos componentes do design system (KAN-12), fora da
-      // navegação principal — abra com Navigator.pushNamed(context,
-      // '/showcase').
-      routes: {'/showcase': (context) => const ShowcaseScreen()},
-      home: const Scaffold(body: Center(child: Text('Cesta Básica Lopez'))),
+      routes: {
+        // Vitrine dos componentes do design system (KAN-12), fora da
+        // navegação principal — abra com Navigator.pushNamed(context,
+        // AppRoutes.showcase).
+        AppRoutes.showcase: (context) => const ShowcaseScreen(),
+        AppRoutes.novaVenda: (context) => const NovaVendaScreen(),
+      },
+      // MainShell fixo como home por enquanto (KAN-10). A decisão entre
+      // mostrar login ou navegação conforme o estado de autenticação é
+      // do KAN-11, feito em paralelo — não antecipar aqui.
+      home: const MainShell(),
     );
   }
 }
