@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/connection_badge.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../auth/presentation/logout_button.dart';
 
 /// Aba de agenda do vendedor (RF08, RF09). Placeholder do KAN-10 — a
 /// lista de clientes a visitar chega em uma próxima sprint.
@@ -15,6 +16,7 @@ class AgendaScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Agenda'),
         actions: const [
+          LogoutButton(),
           Padding(
             padding: EdgeInsets.only(right: AppSpacing.md),
             child: Center(child: ConnectionBadge()),

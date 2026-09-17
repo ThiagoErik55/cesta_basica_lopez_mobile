@@ -4,7 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'core/navigation/app_routes.dart';
-import 'core/navigation/main_shell.dart';
+import 'core/navigation/auth_gate.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/showcase_screen.dart';
 import 'features/venda/presentation/nova_venda_screen.dart';
@@ -39,10 +39,9 @@ class CestaBasicaApp extends StatelessWidget {
         AppRoutes.showcase: (context) => const ShowcaseScreen(),
         AppRoutes.novaVenda: (context) => const NovaVendaScreen(),
       },
-      // MainShell fixo como home por enquanto (KAN-10). A decisão entre
-      // mostrar login ou navegação conforme o estado de autenticação é
-      // do KAN-11, feito em paralelo — não antecipar aqui.
-      home: const MainShell(),
+      // AuthGate decide entre LoginScreen e MainShell conforme o
+      // estado de autenticação (KAN-11).
+      home: const AuthGate(),
     );
   }
 }
