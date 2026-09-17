@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'core/theme/app_theme.dart';
+import 'core/widgets/showcase_screen.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -23,10 +25,15 @@ class CestaBasicaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       title: 'Cesta Básica Lopez',
       debugShowCheckedModeBanner: false,
-      home: Scaffold(body: Center(child: Text('Cesta Básica Lopez'))),
+      theme: AppTheme.light,
+      // Vitrine dos componentes do design system (KAN-12), fora da
+      // navegação principal — abra com Navigator.pushNamed(context,
+      // '/showcase').
+      routes: {'/showcase': (context) => const ShowcaseScreen()},
+      home: const Scaffold(body: Center(child: Text('Cesta Básica Lopez'))),
     );
   }
 }
