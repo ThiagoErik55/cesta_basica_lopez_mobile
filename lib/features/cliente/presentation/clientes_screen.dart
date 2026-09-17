@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/connection_badge.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../auth/presentation/logout_button.dart';
 
 /// Aba de cadastro e busca de clientes (RF01, RF02). Placeholder do
 /// KAN-10 — o cadastro e a busca chegam em uma próxima sprint.
@@ -15,6 +16,7 @@ class ClientesScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Clientes'),
         actions: const [
+          LogoutButton(),
           Padding(
             padding: EdgeInsets.only(right: AppSpacing.md),
             child: Center(child: ConnectionBadge()),
