@@ -14,12 +14,13 @@ import '../data/cliente_model.dart';
 import '../domain/status_pagamento.dart';
 import 'cliente_providers.dart';
 import 'credito_cliente_form.dart';
+import 'historico_cliente_secoes.dart';
 
 /// Detalhes do cliente (KAN-17): dados cadastrais, status de pagamento e
 /// situação financeira (somente leitura). Os dados cadastrais são
 /// editados pelo botão da AppBar; score, limite e bloqueio, na seção
-/// Crédito (KAN-20). Histórico de compras e pagamentos
-/// chega com os módulos de Vendas e Pagamentos (Sprints 4 e 5).
+/// Crédito (KAN-20). Os históricos de compras e pagamentos (KAN-18,
+/// KAN-19) usam dados fictícios até as Sprints 4 e 5.
 ///
 /// Recebe o id do cliente como argumento da rota.
 class DetalhesClienteScreen extends ConsumerWidget {
@@ -125,6 +126,11 @@ class _Detalhes extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: AppSpacing.lg),
+
+        HistoricoComprasSecao(clienteId: cliente.id),
+        const SizedBox(height: AppSpacing.lg),
+        HistoricoPagamentosSecao(clienteId: cliente.id),
         const SizedBox(height: AppSpacing.lg),
 
         const SectionHeader(titulo: 'Crédito'),
