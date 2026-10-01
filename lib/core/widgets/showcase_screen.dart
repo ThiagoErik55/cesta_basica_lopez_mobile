@@ -8,6 +8,7 @@ import '../theme/app_text_styles.dart';
 import 'client_card.dart';
 import 'connection_badge.dart';
 import 'empty_state.dart';
+import 'filter_chip_bar.dart';
 import 'primary_button.dart';
 import 'product_card.dart';
 import 'score_badge.dart';
@@ -133,7 +134,22 @@ class ShowcaseScreen extends StatelessWidget {
               StatusBadge.atencao(),
               StatusBadge.inadimplente(),
               StatusBadge.vencido(),
+              StatusBadge.emAtraso(),
+              StatusBadge.bloqueado(),
             ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          const SectionHeader(titulo: 'Filtro'),
+          const SizedBox(height: AppSpacing.sm),
+          FilterChipBar<String>(
+            opcoes: const [
+              OpcaoFiltro('Todos', null),
+              OpcaoFiltro('Em dia', 'emDia'),
+              OpcaoFiltro('Em atraso', 'emAtraso'),
+            ],
+            selecionado: 'emDia',
+            onSelecionar: (_) {},
           ),
           const SizedBox(height: AppSpacing.lg),
 

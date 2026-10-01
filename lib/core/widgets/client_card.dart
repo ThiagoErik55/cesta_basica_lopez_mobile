@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../features/cliente/data/cliente_model.dart';
+import '../../features/cliente/domain/status_pagamento.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
@@ -9,9 +10,8 @@ import 'status_badge.dart';
 
 /// Card de cliente usado nas listas de agenda e cadastro.
 ///
-/// O status financeiro exibido vem de [ClienteModel.emAtraso] e
-/// [ClienteModel.temDebito] — a lógica já existe no model e não é
-/// recalculada aqui.
+/// O status de pagamento exibido vem de [statusPagamento] (KAN-16) — o
+/// card só mostra o badge correspondente, sem calcular nada.
 class ClientCard extends StatelessWidget {
   const ClientCard({required this.cliente, this.onTap, super.key});
 
@@ -25,12 +25,11 @@ class ClientCard extends StatelessWidget {
     final inicial = cliente.nome.isEmpty ? '?' : cliente.nome[0].toUpperCase();
     final corAvatarTexto = AppColors.textoContrastante(AppColors.primary);
 
-    Widget? statusBadge;
-    if (cliente.emAtraso) {
-      statusBadge = const StatusBadge.vencido();
-    } else if (cliente.temDebito) {
-      statusBadge = const StatusBadge.atencao();
-    }
+    final statusBadge = switch (statusPagamento(cliente)) {
+      StatusPagamento.emDia => const StatusBadge.emDia(),
+      StatusPagamento.emAtraso => const StatusBadge.emAtraso(),
+      StatusPagamento.bloqueado => const StatusBadge.bloqueado(),
+    };
 
     return Card(
       child: InkWell(
@@ -66,10 +65,8 @@ class ClientCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   ScoreBadge(cliente.score),
-                  if (statusBadge != null) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    statusBadge,
-                  ],
+                  const SizedBox(height: AppSpacing.xs),
+                  statusBadge,
                 ],
               ),
             ],
