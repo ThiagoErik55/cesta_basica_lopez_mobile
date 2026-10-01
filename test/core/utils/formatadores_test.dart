@@ -13,4 +13,14 @@ void main() {
     expect(formatarData(null), '—');
     expect(formatarData(null, vazio: 'Nenhuma'), 'Nenhuma');
   });
+
+  test('formatarValorEditavel e lerValorMonetario', () {
+    expect(formatarValorEditavel(150), '150,00');
+    expect(formatarValorEditavel(0.5), '0,50');
+    expect(lerValorMonetario('150'), 150);
+    expect(lerValorMonetario('150,5'), 150.5);
+    expect(lerValorMonetario('150.50'), 150.5);
+    expect(lerValorMonetario(''), isNull);
+    expect(lerValorMonetario(','), isNull);
+  });
 }

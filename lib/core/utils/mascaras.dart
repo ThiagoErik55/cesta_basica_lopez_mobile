@@ -58,3 +58,11 @@ String _formatarTelefone(String d) {
   if (numero.length <= corte) return '($ddd) $numero';
   return '($ddd) ${numero.substring(0, corte)}-${numero.substring(corte)}';
 }
+
+/// Entrada de valor monetário: só dígitos e um separador decimal
+/// (vírgula ou ponto) com até duas casas. Edições fora desse formato
+/// são ignoradas. Ler com `lerValorMonetario` (formatadores.dart).
+final valorMonetarioFormatter = TextInputFormatter.withFunction(
+  (antigo, novo) =>
+      RegExp(r'^\d*([.,]\d{0,2})?$').hasMatch(novo.text) ? novo : antigo,
+);

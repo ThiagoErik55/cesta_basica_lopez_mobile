@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/domain/enums.dart';
 import '../../../core/utils/id_generator.dart';
 import '../data/cliente_model.dart';
 import '../data/cliente_repository.dart';
@@ -112,26 +113,66 @@ class SalvarClienteNotifier extends AsyncNotifier<void> {
   }
 
   /// Atualiza os dados cadastrais de [original], mantendo id, código e
-  /// todos os campos financeiros. Mesmo retorno de [cadastrar].
-  ///
-  /// Monta o model direto em vez de usar [ClienteModel.copyWith], que
-  /// não aceita CPF e não consegue limpar a rota (null mantém o valor).
-  Future<bool> atualizar(
-    ClienteModel original,
-    DadosCadastraisCliente dados,
-  ) async {
-    final sincronizado = await _gravar(
-      ClienteModel(
-        id: original.id,
-        codigo: original.codigo,
+  /// todos os campos de crédito. Mesmo retorno de [cadastrar].
+  Future<bool> atualizar(ClienteModel original, DadosCadastraisCliente dados) =>
+      _atualizarExistente(
+        original,
         nome: dados.nome,
         cpf: dados.cpf,
         telefone: dados.telefone,
         endereco: dados.endereco,
         rotaId: dados.rotaId,
-        score: original.score,
-        limiteCredito: original.limiteCredito,
-        bloqueado: original.bloqueado,
+      );
+
+  /// Atualiza score, limite de crédito e bloqueio de [original] (KAN-20),
+  /// mantendo os dados cadastrais. Mesmo retorno de [cadastrar].
+  ///
+  /// Valores definidos manualmente pelo vendedor até existirem (a) o
+  /// histórico de vendas para o cálculo automático do score (Sprint 4)
+  /// e (b) a definição da empresa sobre a regra de bloqueio por atraso
+  /// (RF30, pendência do modelo lógico).
+  Future<bool> atualizarCredito(
+    ClienteModel original, {
+    required ScoreCliente score,
+    required double limiteCredito,
+    required bool bloqueado,
+  }) => _atualizarExistente(
+    original,
+    rotaId: original.rotaId,
+    score: score,
+    limiteCredito: limiteCredito,
+    bloqueado: bloqueado,
+  );
+
+  /// Grava [original] com os campos informados trocados, mantendo id,
+  /// código e o resto. Recarrega os detalhes desse cliente ao final.
+  ///
+  /// Monta o model direto em vez de usar [ClienteModel.copyWith], que
+  /// não aceita CPF e não consegue limpar a rota (null mantém o valor).
+  /// Por isso [rotaId] é obrigatório: `null` aqui apaga a rota.
+  Future<bool> _atualizarExistente(
+    ClienteModel original, {
+    required String? rotaId,
+    String? nome,
+    String? cpf,
+    String? telefone,
+    String? endereco,
+    ScoreCliente? score,
+    double? limiteCredito,
+    bool? bloqueado,
+  }) async {
+    final sincronizado = await _gravar(
+      ClienteModel(
+        id: original.id,
+        codigo: original.codigo,
+        nome: nome ?? original.nome,
+        cpf: cpf ?? original.cpf,
+        telefone: telefone ?? original.telefone,
+        endereco: endereco ?? original.endereco,
+        rotaId: rotaId,
+        score: score ?? original.score,
+        limiteCredito: limiteCredito ?? original.limiteCredito,
+        bloqueado: bloqueado ?? original.bloqueado,
         ultimaCompra: original.ultimaCompra,
         proximoVencimento: original.proximoVencimento,
         valorEmAberto: original.valorEmAberto,
