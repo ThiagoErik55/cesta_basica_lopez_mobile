@@ -25,11 +25,7 @@ class ClientCard extends StatelessWidget {
     final inicial = cliente.nome.isEmpty ? '?' : cliente.nome[0].toUpperCase();
     final corAvatarTexto = AppColors.textoContrastante(AppColors.primary);
 
-    final statusBadge = switch (statusPagamento(cliente)) {
-      StatusPagamento.emDia => const StatusBadge.emDia(),
-      StatusPagamento.emAtraso => const StatusBadge.emAtraso(),
-      StatusPagamento.bloqueado => const StatusBadge.bloqueado(),
-    };
+    final statusBadge = StatusBadge.pagamento(statusPagamento(cliente));
 
     return Card(
       child: InkWell(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../features/cliente/domain/status_pagamento.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
@@ -31,6 +32,15 @@ class StatusBadge extends StatelessWidget {
   const StatusBadge.bloqueado({super.key})
     : texto = 'Bloqueado',
       cor = AppColors.statusBloqueado;
+
+  /// Badge do status de pagamento do cliente (KAN-16), o mesmo no card
+  /// da listagem e na tela de detalhes.
+  factory StatusBadge.pagamento(StatusPagamento status, {Key? key}) =>
+      switch (status) {
+        StatusPagamento.emDia => StatusBadge.emDia(key: key),
+        StatusPagamento.emAtraso => StatusBadge.emAtraso(key: key),
+        StatusPagamento.bloqueado => StatusBadge.bloqueado(key: key),
+      };
 
   final String texto;
   final Color cor;

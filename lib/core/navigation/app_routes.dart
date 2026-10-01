@@ -18,4 +18,8 @@ class AppRoutes {
   /// Detalhes do cliente. Recebe o id do cliente (String) em
   /// `arguments` do Navigator.pushNamed.
   static const String detalheCliente = '/clientes/detalhe';
+
+  /// Edição dos dados cadastrais do cliente (KAN-17). Recebe o
+  /// ClienteModel a editar em `arguments` do Navigator.pushNamed.
+  static const String editarCliente = '/clientes/editar';
 }
