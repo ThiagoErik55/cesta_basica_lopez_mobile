@@ -13,10 +13,12 @@ import '../../../core/widgets/status_badge.dart';
 import '../data/cliente_model.dart';
 import '../domain/status_pagamento.dart';
 import 'cliente_providers.dart';
+import 'credito_cliente_form.dart';
 
 /// Detalhes do cliente (KAN-17): dados cadastrais, status de pagamento e
-/// dados de crédito, somente leitura. Só os dados cadastrais podem ser
-/// editados, pelo botão da AppBar. Histórico de compras e pagamentos
+/// situação financeira (somente leitura). Os dados cadastrais são
+/// editados pelo botão da AppBar; score, limite e bloqueio, na seção
+/// Crédito (KAN-20). Histórico de compras e pagamentos
 /// chega com os módulos de Vendas e Pagamentos (Sprints 4 e 5).
 ///
 /// Recebe o id do cliente como argumento da rota.
@@ -110,12 +112,11 @@ class _Detalhes extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
 
-        const SectionHeader(titulo: 'Crédito'),
+        // Derivados das vendas e parcelas — só leitura.
+        const SectionHeader(titulo: 'Situação financeira'),
         const SizedBox(height: AppSpacing.sm),
         _CardInformacoes(
           linhas: [
-            ('Score', cliente.score.name.toUpperCase()),
-            ('Limite de crédito', formatarMoeda(cliente.limiteCredito)),
             ('Valor em aberto', formatarMoeda(cliente.valorEmAberto)),
             ('Próximo vencimento', formatarData(cliente.proximoVencimento)),
             (
@@ -124,6 +125,13 @@ class _Detalhes extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: AppSpacing.lg),
+
+        const SectionHeader(titulo: 'Crédito'),
+        const SizedBox(height: AppSpacing.sm),
+        // A key recria o formulário quando o cliente é recarregado após
+        // salvar, para os campos refletirem os valores gravados.
+        CreditoClienteForm(key: ValueKey(cliente.updatedAt), cliente: cliente),
       ],
     );
   }
