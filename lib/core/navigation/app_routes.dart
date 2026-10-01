@@ -11,4 +11,11 @@ class AppRoutes {
   /// empilhada sobre a navegação atual (Navigator.pushNamed), e não uma
   /// posição fixa do IndexedStack do MainShell.
   static const String novaVenda = '/nova-venda';
+
+  /// Cadastro de cliente (RF01), aberto pelo FAB da aba Clientes.
+  static const String cadastroCliente = '/clientes/novo';
+
+  /// Detalhes do cliente. Recebe o id do cliente (String) em
+  /// `arguments` do Navigator.pushNamed.
+  static const String detalheCliente = '/clientes/detalhe';
 }
