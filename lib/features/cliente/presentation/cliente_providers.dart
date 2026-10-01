@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/id_generator.dart';
 import '../data/cliente_model.dart';
 import '../data/cliente_repository.dart';
+import '../domain/dados_cadastrais_cliente.dart';
 import '../domain/status_pagamento.dart';
 
 /// Filtros da listagem de clientes: termo de busca (já "debounced" pela
@@ -59,22 +60,23 @@ final clientesProvider = Provider.autoDispose<AsyncValue<List<ClienteModel>>>((
   );
 });
 
-/// Cliente por id, usado pela tela de detalhes (placeholder até o card
-/// de Detalhes do Cliente).
+/// Cliente por id, para a tela de detalhes (KAN-17). `null` quando não
+/// existe ou foi removido. É invalidado por [SalvarClienteNotifier]
+/// após uma edição, para a tela recarregar os dados.
 final clientePorIdProvider = FutureProvider.autoDispose
     .family<ClienteModel?, String>((ref, id) {
       return ref.watch(clienteRepositoryProvider).buscarPorId(id);
     });
 
-/// Cadastro de cliente (RF01). O estado expõe o carregamento e o erro do
-/// último salvamento para a tela; a montagem do [ClienteModel] fica
-/// aqui, fora da UI.
-final cadastroClienteProvider =
-    AsyncNotifierProvider.autoDispose<CadastroClienteNotifier, void>(
-      CadastroClienteNotifier.new,
+/// Cadastro (RF01) e edição (KAN-17) de cliente. O estado expõe o
+/// carregamento e o erro do último salvamento para a tela; a montagem
+/// do [ClienteModel] fica aqui, fora da UI.
+final salvarClienteProvider =
+    AsyncNotifierProvider.autoDispose<SalvarClienteNotifier, void>(
+      SalvarClienteNotifier.new,
     );
 
-class CadastroClienteNotifier extends AsyncNotifier<void> {
+class SalvarClienteNotifier extends AsyncNotifier<void> {
   /// Quanto esperar a confirmação do servidor antes de considerar a
   /// escrita enfileirada offline. Sem sinal (RNF06), o Future do
   /// Firestore só completa quando a conexão volta — mas o documento já
@@ -84,35 +86,65 @@ class CadastroClienteNotifier extends AsyncNotifier<void> {
   @override
   FutureOr<void> build() {}
 
-  /// Salva o cliente e retorna `true` se o servidor confirmou a escrita,
-  /// ou `false` se ela ficou na fila offline do Firestore. Erros são
-  /// propagados e também ficam disponíveis no [state].
+  /// Cadastra um cliente novo. Score, limite de crédito e bloqueado
+  /// ficam com os padrões do model (B, 0, não bloqueado).
   ///
-  /// Score, limite de crédito e bloqueado ficam com os padrões do model
-  /// (B, 0, não bloqueado) — são definidos em outros fluxos.
-  Future<bool> salvar({
-    required String nome,
-    required String cpf,
-    required String telefone,
-    required String endereco,
-    String? rotaId,
-  }) async {
-    state = const AsyncLoading();
+  /// Retorna `true` se o servidor confirmou a escrita, ou `false` se ela
+  /// ficou na fila offline do Firestore. Erros são propagados e também
+  /// ficam disponíveis no [state].
+  Future<bool> cadastrar(DadosCadastraisCliente dados) {
     final id = gerarId();
-    final cliente = ClienteModel(
-      id: id,
-      // Código interno provisório derivado do UUID: um sequencial
-      // (C001, C002...) exigiria um contador central, que colidiria
-      // entre os dois vendedores cadastrando offline (ADR 001).
-      codigo: 'C-${id.substring(0, 8).toUpperCase()}',
-      nome: nome.trim(),
-      cpf: cpf,
-      telefone: telefone,
-      endereco: endereco.trim(),
-      rotaId: rotaId,
-      updatedAt: DateTime.now(),
+    return _gravar(
+      ClienteModel(
+        id: id,
+        // Código interno provisório derivado do UUID: um sequencial
+        // (C001, C002...) exigiria um contador central, que colidiria
+        // entre os dois vendedores cadastrando offline (ADR 001).
+        codigo: 'C-${id.substring(0, 8).toUpperCase()}',
+        nome: dados.nome,
+        cpf: dados.cpf,
+        telefone: dados.telefone,
+        endereco: dados.endereco,
+        rotaId: dados.rotaId,
+        updatedAt: DateTime.now(),
+      ),
     );
+  }
 
+  /// Atualiza os dados cadastrais de [original], mantendo id, código e
+  /// todos os campos financeiros. Mesmo retorno de [cadastrar].
+  ///
+  /// Monta o model direto em vez de usar [ClienteModel.copyWith], que
+  /// não aceita CPF e não consegue limpar a rota (null mantém o valor).
+  Future<bool> atualizar(
+    ClienteModel original,
+    DadosCadastraisCliente dados,
+  ) async {
+    final sincronizado = await _gravar(
+      ClienteModel(
+        id: original.id,
+        codigo: original.codigo,
+        nome: dados.nome,
+        cpf: dados.cpf,
+        telefone: dados.telefone,
+        endereco: dados.endereco,
+        rotaId: dados.rotaId,
+        score: original.score,
+        limiteCredito: original.limiteCredito,
+        bloqueado: original.bloqueado,
+        ultimaCompra: original.ultimaCompra,
+        proximoVencimento: original.proximoVencimento,
+        valorEmAberto: original.valorEmAberto,
+        updatedAt: DateTime.now(),
+        deleted: original.deleted,
+      ),
+    );
+    ref.invalidate(clientePorIdProvider(original.id));
+    return sincronizado;
+  }
+
+  Future<bool> _gravar(ClienteModel cliente) async {
+    state = const AsyncLoading();
     try {
       final escrita = ref.read(clienteRepositoryProvider).salvar(cliente);
       final sincronizado = await escrita
