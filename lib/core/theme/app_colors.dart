@@ -37,6 +37,11 @@ class AppColors {
   static const Color statusInadimplente = scoreD;
   static const Color statusVencido = scoreD;
 
+  // Bloqueio administrativo (RF30). Não há cor no protótipo: um neutro
+  // escuro, para não se confundir com o vermelho de "em atraso" — o
+  // bloqueio é uma decisão, não um vencimento.
+  static const Color statusBloqueado = textPrimary;
+
   // Conectividade. O protótipo só define o verde do badge "ONLINE"; o
   // tom de "offline" não é especificado — optou-se por um cinza neutro,
   // em vez de vermelho, para não sugerir um erro onde não há um.

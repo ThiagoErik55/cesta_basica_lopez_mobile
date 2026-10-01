@@ -9,12 +9,16 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/client_card.dart';
 import '../../../core/widgets/connection_badge.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/filter_chip_bar.dart';
 import '../../auth/presentation/logout_button.dart';
+import '../domain/status_pagamento.dart';
 import 'cliente_providers.dart';
 
 /// Aba de listagem e busca de clientes (RF01, RF02). A busca é por
 /// prefixo do nome (limitação do Firestore, ver campo nomeBusca no
-/// modelo lógico) e só dispara depois de uma pausa na digitação.
+/// modelo lógico) e só dispara depois de uma pausa na digitação. O
+/// filtro por status de pagamento (KAN-16) é aplicado sobre o resultado
+/// da busca.
 class ClientesScreen extends ConsumerStatefulWidget {
   const ClientesScreen({super.key});
 
@@ -25,9 +29,12 @@ class ClientesScreen extends ConsumerStatefulWidget {
 class _ClientesScreenState extends ConsumerState<ClientesScreen> {
   static const _debounce = Duration(milliseconds: 300);
 
-  final _busca = TextEditingController();
+  // Começa com o termo que já está no provider, que sobrevive à tela
+  // (ex. ao sair e voltar do login).
+  late final _busca = TextEditingController(
+    text: ref.read(filtroClientesProvider).termo,
+  );
   Timer? _timer;
-  String _termo = '';
 
   @override
   void dispose() {
@@ -39,19 +46,20 @@ class _ClientesScreenState extends ConsumerState<ClientesScreen> {
   void _aoDigitar(String texto) {
     _timer?.cancel();
     _timer = Timer(_debounce, () {
-      if (mounted) setState(() => _termo = texto.trim());
+      if (mounted) ref.read(filtroClientesProvider.notifier).buscar(texto);
     });
   }
 
   void _limparBusca() {
     _timer?.cancel();
     _busca.clear();
-    setState(() => _termo = '');
+    ref.read(filtroClientesProvider.notifier).buscar('');
   }
 
   @override
   Widget build(BuildContext context) {
-    final clientes = ref.watch(clientesProvider(_termo));
+    final clientes = ref.watch(clientesProvider);
+    final filtro = ref.watch(filtroClientesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -102,13 +110,25 @@ class _ClientesScreenState extends ConsumerState<ClientesScreen> {
               ),
             ),
           ),
+          FilterChipBar<StatusPagamento>(
+            opcoes: [
+              const OpcaoFiltro('Todos', null),
+              for (final status in StatusPagamento.values)
+                OpcaoFiltro(status.rotulo, status),
+            ],
+            selecionado: filtro.status,
+            onSelecionar: ref
+                .read(filtroClientesProvider.notifier)
+                .filtrarPorStatus,
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: clientes.when(
               // Mantém a lista anterior visível enquanto o novo termo
               // carrega, em vez de piscar um indicador a cada busca.
               skipLoadingOnReload: true,
               data: (lista) => lista.isEmpty
-                  ? _vazio()
+                  ? _vazio(filtro)
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(
                         AppSpacing.md,
@@ -149,10 +169,18 @@ class _ClientesScreenState extends ConsumerState<ClientesScreen> {
     );
   }
 
-  Widget _vazio() {
+  Widget _vazio(FiltroClientes filtro) {
+    final semFiltro = filtro.termo.isEmpty && filtro.status == null;
+    final descricao = switch ((filtro.termo, filtro.status)) {
+      ('', final status?) => 'Nenhum cliente com status "${status.rotulo}".',
+      (final termo, null) => 'Nenhum nome começa com "$termo".',
+      (final termo, final status?) =>
+        'Nenhum cliente "${status.rotulo}" com nome começando por "$termo".',
+    };
+
     return Center(
       child: SingleChildScrollView(
-        child: _termo.isEmpty
+        child: semFiltro
             ? const EmptyState(
                 icone: Icons.people_outline,
                 titulo: 'Nenhum cliente cadastrado',
@@ -161,7 +189,7 @@ class _ClientesScreenState extends ConsumerState<ClientesScreen> {
             : EmptyState(
                 icone: Icons.search_off,
                 titulo: 'Nenhum cliente encontrado',
-                descricao: 'Nenhum nome começa com "$_termo".',
+                descricao: descricao,
               ),
       ),
     );

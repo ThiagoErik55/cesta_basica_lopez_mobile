@@ -7,8 +7,9 @@ import 'core/navigation/app_routes.dart';
 import 'core/navigation/auth_gate.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/showcase_screen.dart';
+import 'features/cliente/data/cliente_model.dart';
 import 'features/cliente/presentation/cadastro_cliente_screen.dart';
-import 'features/cliente/presentation/detalhe_cliente_screen.dart';
+import 'features/cliente/presentation/detalhes_cliente_screen.dart';
 import 'features/venda/presentation/nova_venda_screen.dart';
 import 'firebase_options.dart';
 
@@ -41,8 +42,11 @@ class CestaBasicaApp extends StatelessWidget {
         AppRoutes.showcase: (context) => const ShowcaseScreen(),
         AppRoutes.novaVenda: (context) => const NovaVendaScreen(),
         AppRoutes.cadastroCliente: (context) => const CadastroClienteScreen(),
-        AppRoutes.detalheCliente: (context) => DetalheClienteScreen(
+        AppRoutes.detalheCliente: (context) => DetalhesClienteScreen(
           clienteId: ModalRoute.of(context)!.settings.arguments! as String,
+        ),
+        AppRoutes.editarCliente: (context) => CadastroClienteScreen(
+          cliente: ModalRoute.of(context)!.settings.arguments! as ClienteModel,
         ),
       },
       // AuthGate decide entre LoginScreen e MainShell conforme o

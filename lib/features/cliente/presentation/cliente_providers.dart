@@ -2,42 +2,82 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/domain/enums.dart';
 import '../../../core/utils/id_generator.dart';
 import '../data/cliente_model.dart';
 import '../data/cliente_repository.dart';
+import '../domain/dados_cadastrais_cliente.dart';
+import '../domain/status_pagamento.dart';
 
-/// Lista de clientes para a tela de listagem (RF02), parametrizada pelo
-/// termo de busca já "debounced" pela tela. Termo vazio lista todos;
-/// caso contrário, busca por prefixo do nome via repositório.
+/// Filtros da listagem de clientes: termo de busca (já "debounced" pela
+/// tela) e status de pagamento (`null` = todos).
+class FiltroClientes {
+  const FiltroClientes({this.termo = '', this.status});
+
+  final String termo;
+  final StatusPagamento? status;
+}
+
+final filtroClientesProvider =
+    NotifierProvider<FiltroClientesNotifier, FiltroClientes>(
+      FiltroClientesNotifier.new,
+    );
+
+class FiltroClientesNotifier extends Notifier<FiltroClientes> {
+  @override
+  FiltroClientes build() => const FiltroClientes();
+
+  void buscar(String termo) =>
+      state = FiltroClientes(termo: termo.trim(), status: state.status);
+
+  void filtrarPorStatus(StatusPagamento? status) =>
+      state = FiltroClientes(termo: state.termo, status: status);
+}
+
+/// Resultado da busca por nome (RF02). Termo vazio lista todos; caso
+/// contrário, busca por prefixo do nome via repositório.
 ///
-/// autoDispose: cada termo digitado abre um listener no Firestore, e o
-/// listener do termo anterior precisa ser fechado quando a tela passa a
-/// observar o termo novo.
-final clientesProvider = StreamProvider.autoDispose
-    .family<List<ClienteModel>, String>((ref, termo) {
+/// Observa só o termo: trocar o filtro de status não reabre o listener
+/// do Firestore — o status é aplicado em memória em [clientesProvider].
+final _clientesBuscadosProvider =
+    StreamProvider.autoDispose<List<ClienteModel>>((ref) {
+      final termo = ref.watch(filtroClientesProvider.select((f) => f.termo));
       final repositorio = ref.watch(clienteRepositoryProvider);
-      final buscado = termo.trim();
-      return buscado.isEmpty
+      return termo.isEmpty
           ? repositorio.observarTodos()
-          : repositorio.buscarPorNome(buscado);
+          : repositorio.buscarPorNome(termo);
     });
 
-/// Cliente por id, usado pela tela de detalhes (placeholder até o card
-/// de Detalhes do Cliente).
+/// Lista exibida na tela de clientes: o resultado da busca por nome,
+/// filtrado pelo status de pagamento selecionado (KAN-16).
+final clientesProvider = Provider.autoDispose<AsyncValue<List<ClienteModel>>>((
+  ref,
+) {
+  final status = ref.watch(filtroClientesProvider.select((f) => f.status));
+  final buscados = ref.watch(_clientesBuscadosProvider);
+  if (status == null) return buscados;
+  return buscados.whenData(
+    (lista) => lista.where((c) => statusPagamento(c) == status).toList(),
+  );
+});
+
+/// Cliente por id, para a tela de detalhes (KAN-17). `null` quando não
+/// existe ou foi removido. É invalidado por [SalvarClienteNotifier]
+/// após uma edição, para a tela recarregar os dados.
 final clientePorIdProvider = FutureProvider.autoDispose
     .family<ClienteModel?, String>((ref, id) {
       return ref.watch(clienteRepositoryProvider).buscarPorId(id);
     });
 
-/// Cadastro de cliente (RF01). O estado expõe o carregamento e o erro do
-/// último salvamento para a tela; a montagem do [ClienteModel] fica
-/// aqui, fora da UI.
-final cadastroClienteProvider =
-    AsyncNotifierProvider.autoDispose<CadastroClienteNotifier, void>(
-      CadastroClienteNotifier.new,
+/// Cadastro (RF01) e edição (KAN-17) de cliente. O estado expõe o
+/// carregamento e o erro do último salvamento para a tela; a montagem
+/// do [ClienteModel] fica aqui, fora da UI.
+final salvarClienteProvider =
+    AsyncNotifierProvider.autoDispose<SalvarClienteNotifier, void>(
+      SalvarClienteNotifier.new,
     );
 
-class CadastroClienteNotifier extends AsyncNotifier<void> {
+class SalvarClienteNotifier extends AsyncNotifier<void> {
   /// Quanto esperar a confirmação do servidor antes de considerar a
   /// escrita enfileirada offline. Sem sinal (RNF06), o Future do
   /// Firestore só completa quando a conexão volta — mas o documento já
@@ -47,35 +87,105 @@ class CadastroClienteNotifier extends AsyncNotifier<void> {
   @override
   FutureOr<void> build() {}
 
-  /// Salva o cliente e retorna `true` se o servidor confirmou a escrita,
-  /// ou `false` se ela ficou na fila offline do Firestore. Erros são
-  /// propagados e também ficam disponíveis no [state].
+  /// Cadastra um cliente novo. Score, limite de crédito e bloqueado
+  /// ficam com os padrões do model (B, 0, não bloqueado).
   ///
-  /// Score, limite de crédito e bloqueado ficam com os padrões do model
-  /// (B, 0, não bloqueado) — são definidos em outros fluxos.
-  Future<bool> salvar({
-    required String nome,
-    required String cpf,
-    required String telefone,
-    required String endereco,
-    String? rotaId,
-  }) async {
-    state = const AsyncLoading();
+  /// Retorna `true` se o servidor confirmou a escrita, ou `false` se ela
+  /// ficou na fila offline do Firestore. Erros são propagados e também
+  /// ficam disponíveis no [state].
+  Future<bool> cadastrar(DadosCadastraisCliente dados) {
     final id = gerarId();
-    final cliente = ClienteModel(
-      id: id,
-      // Código interno provisório derivado do UUID: um sequencial
-      // (C001, C002...) exigiria um contador central, que colidiria
-      // entre os dois vendedores cadastrando offline (ADR 001).
-      codigo: 'C-${id.substring(0, 8).toUpperCase()}',
-      nome: nome.trim(),
-      cpf: cpf,
-      telefone: telefone,
-      endereco: endereco.trim(),
-      rotaId: rotaId,
-      updatedAt: DateTime.now(),
+    return _gravar(
+      ClienteModel(
+        id: id,
+        // Código interno provisório derivado do UUID: um sequencial
+        // (C001, C002...) exigiria um contador central, que colidiria
+        // entre os dois vendedores cadastrando offline (ADR 001).
+        codigo: 'C-${id.substring(0, 8).toUpperCase()}',
+        nome: dados.nome,
+        cpf: dados.cpf,
+        telefone: dados.telefone,
+        endereco: dados.endereco,
+        rotaId: dados.rotaId,
+        updatedAt: DateTime.now(),
+      ),
     );
+  }
 
+  /// Atualiza os dados cadastrais de [original], mantendo id, código e
+  /// todos os campos de crédito. Mesmo retorno de [cadastrar].
+  Future<bool> atualizar(ClienteModel original, DadosCadastraisCliente dados) =>
+      _atualizarExistente(
+        original,
+        nome: dados.nome,
+        cpf: dados.cpf,
+        telefone: dados.telefone,
+        endereco: dados.endereco,
+        rotaId: dados.rotaId,
+      );
+
+  /// Atualiza score, limite de crédito e bloqueio de [original] (KAN-20),
+  /// mantendo os dados cadastrais. Mesmo retorno de [cadastrar].
+  ///
+  /// Valores definidos manualmente pelo vendedor até existirem (a) o
+  /// histórico de vendas para o cálculo automático do score (Sprint 4)
+  /// e (b) a definição da empresa sobre a regra de bloqueio por atraso
+  /// (RF30, pendência do modelo lógico).
+  Future<bool> atualizarCredito(
+    ClienteModel original, {
+    required ScoreCliente score,
+    required double limiteCredito,
+    required bool bloqueado,
+  }) => _atualizarExistente(
+    original,
+    rotaId: original.rotaId,
+    score: score,
+    limiteCredito: limiteCredito,
+    bloqueado: bloqueado,
+  );
+
+  /// Grava [original] com os campos informados trocados, mantendo id,
+  /// código e o resto. Recarrega os detalhes desse cliente ao final.
+  ///
+  /// Monta o model direto em vez de usar [ClienteModel.copyWith], que
+  /// não aceita CPF e não consegue limpar a rota (null mantém o valor).
+  /// Por isso [rotaId] é obrigatório: `null` aqui apaga a rota.
+  Future<bool> _atualizarExistente(
+    ClienteModel original, {
+    required String? rotaId,
+    String? nome,
+    String? cpf,
+    String? telefone,
+    String? endereco,
+    ScoreCliente? score,
+    double? limiteCredito,
+    bool? bloqueado,
+  }) async {
+    final sincronizado = await _gravar(
+      ClienteModel(
+        id: original.id,
+        codigo: original.codigo,
+        nome: nome ?? original.nome,
+        cpf: cpf ?? original.cpf,
+        telefone: telefone ?? original.telefone,
+        endereco: endereco ?? original.endereco,
+        rotaId: rotaId,
+        score: score ?? original.score,
+        limiteCredito: limiteCredito ?? original.limiteCredito,
+        bloqueado: bloqueado ?? original.bloqueado,
+        ultimaCompra: original.ultimaCompra,
+        proximoVencimento: original.proximoVencimento,
+        valorEmAberto: original.valorEmAberto,
+        updatedAt: DateTime.now(),
+        deleted: original.deleted,
+      ),
+    );
+    ref.invalidate(clientePorIdProvider(original.id));
+    return sincronizado;
+  }
+
+  Future<bool> _gravar(ClienteModel cliente) async {
+    state = const AsyncLoading();
     try {
       final escrita = ref.read(clienteRepositoryProvider).salvar(cliente);
       final sincronizado = await escrita
