@@ -24,6 +24,14 @@ class StatusBadge extends StatelessWidget {
     : texto = 'Vencido',
       cor = AppColors.statusVencido;
 
+  const StatusBadge.emAtraso({super.key})
+    : texto = 'Em atraso',
+      cor = AppColors.statusVencido;
+
+  const StatusBadge.bloqueado({super.key})
+    : texto = 'Bloqueado',
+      cor = AppColors.statusBloqueado;
+
   final String texto;
   final Color cor;
 

@@ -5,22 +5,59 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/id_generator.dart';
 import '../data/cliente_model.dart';
 import '../data/cliente_repository.dart';
+import '../domain/status_pagamento.dart';
 
-/// Lista de clientes para a tela de listagem (RF02), parametrizada pelo
-/// termo de busca já "debounced" pela tela. Termo vazio lista todos;
-/// caso contrário, busca por prefixo do nome via repositório.
+/// Filtros da listagem de clientes: termo de busca (já "debounced" pela
+/// tela) e status de pagamento (`null` = todos).
+class FiltroClientes {
+  const FiltroClientes({this.termo = '', this.status});
+
+  final String termo;
+  final StatusPagamento? status;
+}
+
+final filtroClientesProvider =
+    NotifierProvider<FiltroClientesNotifier, FiltroClientes>(
+      FiltroClientesNotifier.new,
+    );
+
+class FiltroClientesNotifier extends Notifier<FiltroClientes> {
+  @override
+  FiltroClientes build() => const FiltroClientes();
+
+  void buscar(String termo) =>
+      state = FiltroClientes(termo: termo.trim(), status: state.status);
+
+  void filtrarPorStatus(StatusPagamento? status) =>
+      state = FiltroClientes(termo: state.termo, status: status);
+}
+
+/// Resultado da busca por nome (RF02). Termo vazio lista todos; caso
+/// contrário, busca por prefixo do nome via repositório.
 ///
-/// autoDispose: cada termo digitado abre um listener no Firestore, e o
-/// listener do termo anterior precisa ser fechado quando a tela passa a
-/// observar o termo novo.
-final clientesProvider = StreamProvider.autoDispose
-    .family<List<ClienteModel>, String>((ref, termo) {
+/// Observa só o termo: trocar o filtro de status não reabre o listener
+/// do Firestore — o status é aplicado em memória em [clientesProvider].
+final _clientesBuscadosProvider =
+    StreamProvider.autoDispose<List<ClienteModel>>((ref) {
+      final termo = ref.watch(filtroClientesProvider.select((f) => f.termo));
       final repositorio = ref.watch(clienteRepositoryProvider);
-      final buscado = termo.trim();
-      return buscado.isEmpty
+      return termo.isEmpty
           ? repositorio.observarTodos()
-          : repositorio.buscarPorNome(buscado);
+          : repositorio.buscarPorNome(termo);
     });
+
+/// Lista exibida na tela de clientes: o resultado da busca por nome,
+/// filtrado pelo status de pagamento selecionado (KAN-16).
+final clientesProvider = Provider.autoDispose<AsyncValue<List<ClienteModel>>>((
+  ref,
+) {
+  final status = ref.watch(filtroClientesProvider.select((f) => f.status));
+  final buscados = ref.watch(_clientesBuscadosProvider);
+  if (status == null) return buscados;
+  return buscados.whenData(
+    (lista) => lista.where((c) => statusPagamento(c) == status).toList(),
+  );
+});
 
 /// Cliente por id, usado pela tela de detalhes (placeholder até o card
 /// de Detalhes do Cliente).
