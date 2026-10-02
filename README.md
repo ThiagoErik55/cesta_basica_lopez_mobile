@@ -43,6 +43,23 @@ flutter devices    # confirma que o dispositivo aparece
 flutter run
 ```
 
+## Índices do Firestore
+
+Consultas que combinam filtro e ordenação (ex. a lista de clientes) só
+funcionam com índices compostos. Eles ficam versionados em
+`firestore.indexes.json` — não crie índice só pelo console sem trazê-lo
+para o arquivo.
+
+Publicar os índices no projeto (precisa do Firebase CLI logado):
+```bash
+firebase deploy --only firestore:indexes
+```
+
+Criou um índice pelo link do erro no console? Traga-o para o arquivo:
+```bash
+firebase firestore:indexes > firestore.indexes.json
+```
+
 ## Problemas comuns
 
 **"No supported devices connected"**
@@ -53,6 +70,11 @@ Nenhum emulador aberto ou celular sem depuração USB ativada.
 flutter clean
 flutter pub get
 ```
+
+**"The query requires an index" no console / "Erro ao carregar clientes"**
+Falta um índice no projeto Firebase. Rode o deploy dos índices (seção
+Índices do Firestore) ou crie pelo link da mensagem e atualize o
+`firestore.indexes.json`.
 
 **Build travado sem motivo aparente**
 ```bash
