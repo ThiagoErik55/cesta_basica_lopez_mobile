@@ -4,17 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/connection_badge.dart';
 import '../../cliente/data/cliente_repository.dart';
+import '../domain/rotulos_venda.dart';
 import 'nova_venda_providers.dart';
 import 'rodape_venda.dart';
 import 'secao_cliente_venda.dart';
+import 'secao_pagamento_venda.dart';
 import 'secao_produtos_venda.dart';
 import 'selecionar_cliente_sheet.dart';
 
-/// Nova venda (RF10), aberta pelo botão central
+/// Nova venda (RF10, RF12, RF13, RF14), aberta pelo botão central
 /// da navegação ou pela tela do cliente.
 ///
 /// - KAN-24: seleção de cliente com alerta de pendência
 /// - KAN-25: listagem de produtos e carrinho
+/// - KAN-26: forma de pagamento (à vista ou parcelado)
 ///
 /// [clienteIdInicial] já deixa o cliente selecionado (vindo dos detalhes
 /// do cliente).
@@ -67,12 +70,22 @@ class _NovaVendaScreenState extends ConsumerState<NovaVendaScreen> {
           SecaoClienteVenda(venda: venda, onEscolher: _escolherCliente),
           const SizedBox(height: AppSpacing.lg),
           const SecaoProdutosVenda(),
+          const SizedBox(height: AppSpacing.lg),
+          SecaoPagamentoVenda(venda: venda),
         ],
       ),
       bottomNavigationBar: RodapeVenda(
         total: venda.total,
         unidades: venda.unidades,
+        descricaoPagamento: _descricaoPagamento(venda),
       ),
     );
   }
+
+  String? _descricaoPagamento(NovaVendaState venda) =>
+      switch (venda.pagamento) {
+        PagamentoAVista(:final forma) => forma.rotulo,
+        PagamentoParcelado() => 'Parcelado em ${venda.numeroParcelas}x',
+        null => null,
+      };
 }
