@@ -12,6 +12,10 @@ class AppRoutes {
   /// posição fixa do IndexedStack do MainShell.
   static const String novaVenda = '/nova-venda';
 
+  /// Detalhes de uma venda registrada (KAN-27, KAN-28, KAN-29). Recebe o
+  /// id da venda (String) em `arguments` do Navigator.pushNamed.
+  static const String detalheVenda = '/vendas/detalhe';
+
   /// Cadastro de cliente (RF01), aberto pelo FAB da aba Clientes.
   static const String cadastroCliente = '/clientes/novo';
 

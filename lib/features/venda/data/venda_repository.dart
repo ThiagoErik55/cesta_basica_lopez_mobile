@@ -17,6 +17,8 @@ class VendaRepository {
       _db.collection('clientes');
   CollectionReference<Map<String, dynamic>> get _movimentos =>
       _db.collection('movimentosEstoque');
+  CollectionReference<Map<String, dynamic>> get _produtos =>
+      _db.collection('produtos');
 
   CollectionReference<Map<String, dynamic>> _parcelas(String vendaId) =>
       _vendas.doc(vendaId).collection('parcelas');
@@ -37,13 +39,43 @@ class VendaRepository {
       lote.set(_parcelas(venda.id).doc(p.id), p.toMap());
     }
 
-    for (final m in movimentos) {
-      lote.set(_movimentos.doc(m.id), m.toMap());
-    }
+    _gravarMovimentos(lote, movimentos);
 
     lote.set(_clientes.doc(clienteAtualizado.id), clienteAtualizado.toMap());
 
     await lote.commit();
+  }
+
+  /// Registra a troca de um item em venda já concluída (RF25, KAN-28):
+  /// acrescenta a troca à venda, atualiza a observação (RF26) e grava os
+  /// movimentos de estoque (devolução do original e saída do novo).
+  ///
+  /// A troca entra com arrayUnion, e não reescrevendo a lista inteira:
+  /// duas trocas feitas offline na mesma venda não se sobrescrevem.
+  Future<void> registrarTroca({
+    required String vendaId,
+    required TrocaItem troca,
+    required String observacao,
+    required List<MovimentoEstoqueModel> movimentos,
+  }) async {
+    final lote = _db.batch();
+    lote.update(_vendas.doc(vendaId), {
+      'trocas': FieldValue.arrayUnion([troca.toMap()]),
+      'observacao': observacao,
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+    _gravarMovimentos(lote, movimentos);
+    await lote.commit();
+  }
+
+  /// Grava a observação pós-venda (RF26, KAN-29). Texto vazio limpa o
+  /// campo.
+  Future<void> salvarObservacao(String vendaId, String observacao) {
+    final texto = observacao.trim();
+    return _vendas.doc(vendaId).update({
+      'observacao': texto.isEmpty ? null : texto,
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
   }
 
   /// Quita ou registra pagamento parcial, atualizando o cliente.
@@ -56,6 +88,16 @@ class VendaRepository {
     lote.set(_clientes.doc(clienteAtualizado.id), clienteAtualizado.toMap());
     await lote.commit();
   }
+
+  /// Venda por id, atualizada em tempo real. `null` se não existe ou foi
+  /// removida.
+  Stream<VendaModel?> observarPorId(String id) =>
+      _vendas.doc(id).snapshots().map((doc) {
+        final data = doc.data();
+        if (data == null) return null;
+        final venda = VendaModel.fromMap(data);
+        return venda.deleted ? null : venda;
+      });
 
   Stream<List<VendaModel>> observarPorCliente(String clienteId) => _vendas
       .where('deleted', isEqualTo: false)
@@ -80,6 +122,25 @@ class VendaRepository {
           .map(
             (s) => s.docs.map((d) => ParcelaModel.fromMap(d.data())).toList(),
           );
+
+  /// Grava cada movimento e ajusta o cache `estoqueAtual` do produto.
+  ///
+  /// O ajuste usa FieldValue.increment, que soma no servidor: dois
+  /// vendedores vendendo o mesmo produto offline não perdem a baixa um
+  /// do outro (ADR 001). O saldo autoritativo continua sendo a soma dos
+  /// movimentos.
+  void _gravarMovimentos(
+    WriteBatch lote,
+    List<MovimentoEstoqueModel> movimentos,
+  ) {
+    for (final m in movimentos) {
+      lote.set(_movimentos.doc(m.id), m.toMap());
+      lote.update(_produtos.doc(m.produtoId), {
+        'estoqueAtual': FieldValue.increment(m.delta),
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+    }
+  }
 }
 
 final vendaRepositoryProvider = Provider<VendaRepository>((ref) {
