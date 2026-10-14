@@ -10,6 +10,7 @@ import 'core/widgets/showcase_screen.dart';
 import 'features/cliente/data/cliente_model.dart';
 import 'features/cliente/presentation/cadastro_cliente_screen.dart';
 import 'features/cliente/presentation/detalhes_cliente_screen.dart';
+import 'features/venda/presentation/detalhes_venda_screen.dart';
 import 'features/venda/presentation/nova_venda_screen.dart';
 import 'firebase_options.dart';
 
@@ -42,6 +43,9 @@ class CestaBasicaApp extends StatelessWidget {
         AppRoutes.showcase: (context) => const ShowcaseScreen(),
         AppRoutes.novaVenda: (context) => NovaVendaScreen(
           clienteIdInicial: ModalRoute.of(context)!.settings.arguments as String?,
+        ),
+        AppRoutes.detalheVenda: (context) => DetalhesVendaScreen(
+          vendaId: ModalRoute.of(context)!.settings.arguments! as String,
         ),
         AppRoutes.cadastroCliente: (context) => const CadastroClienteScreen(),
         AppRoutes.detalheCliente: (context) => DetalhesClienteScreen(

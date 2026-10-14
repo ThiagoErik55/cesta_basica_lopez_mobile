@@ -17,6 +17,8 @@ class VendaRepository {
       _db.collection('clientes');
   CollectionReference<Map<String, dynamic>> get _movimentos =>
       _db.collection('movimentosEstoque');
+  CollectionReference<Map<String, dynamic>> get _produtos =>
+      _db.collection('produtos');
 
   CollectionReference<Map<String, dynamic>> _parcelas(String vendaId) =>
       _vendas.doc(vendaId).collection('parcelas');
@@ -37,9 +39,7 @@ class VendaRepository {
       lote.set(_parcelas(venda.id).doc(p.id), p.toMap());
     }
 
-    for (final m in movimentos) {
-      lote.set(_movimentos.doc(m.id), m.toMap());
-    }
+    _gravarMovimentos(lote, movimentos);
 
     lote.set(_clientes.doc(clienteAtualizado.id), clienteAtualizado.toMap());
 
@@ -56,6 +56,16 @@ class VendaRepository {
     lote.set(_clientes.doc(clienteAtualizado.id), clienteAtualizado.toMap());
     await lote.commit();
   }
+
+  /// Venda por id, atualizada em tempo real. `null` se não existe ou foi
+  /// removida.
+  Stream<VendaModel?> observarPorId(String id) =>
+      _vendas.doc(id).snapshots().map((doc) {
+        final data = doc.data();
+        if (data == null) return null;
+        final venda = VendaModel.fromMap(data);
+        return venda.deleted ? null : venda;
+      });
 
   Stream<List<VendaModel>> observarPorCliente(String clienteId) => _vendas
       .where('deleted', isEqualTo: false)
@@ -80,6 +90,25 @@ class VendaRepository {
           .map(
             (s) => s.docs.map((d) => ParcelaModel.fromMap(d.data())).toList(),
           );
+
+  /// Grava cada movimento e ajusta o cache `estoqueAtual` do produto.
+  ///
+  /// O ajuste usa FieldValue.increment, que soma no servidor: dois
+  /// vendedores vendendo o mesmo produto offline não perdem a baixa um
+  /// do outro (ADR 001). O saldo autoritativo continua sendo a soma dos
+  /// movimentos.
+  void _gravarMovimentos(
+    WriteBatch lote,
+    List<MovimentoEstoqueModel> movimentos,
+  ) {
+    for (final m in movimentos) {
+      lote.set(_movimentos.doc(m.id), m.toMap());
+      lote.update(_produtos.doc(m.produtoId), {
+        'estoqueAtual': FieldValue.increment(m.delta),
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+    }
+  }
 }
 
 final vendaRepositoryProvider = Provider<VendaRepository>((ref) {
