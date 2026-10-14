@@ -36,7 +36,8 @@ final posVendaProvider = AsyncNotifierProvider.autoDispose<PosVendaNotifier, voi
   PosVendaNotifier.new,
 );
 
-/// Ações sobre uma venda já registrada: troca (KAN-28). Os métodos retornam `true` se o servidor confirmou e
+/// Ações sobre uma venda já registrada: troca (KAN-28) e observação
+/// (KAN-29). Os métodos retornam `true` se o servidor confirmou e
 /// `false` se a escrita ficou na fila offline.
 class PosVendaNotifier extends AsyncNotifier<void> {
   static const _esperaConfirmacao = Duration(seconds: 3);
@@ -129,6 +130,11 @@ class PosVendaNotifier extends AsyncNotifier<void> {
           ),
     );
   }
+
+  /// Grava a observação pós-venda (RF26). Texto vazio apaga.
+  Future<bool> salvarObservacao(String vendaId, String texto) => _executar(
+    ref.read(vendaRepositoryProvider).salvarObservacao(vendaId, texto),
+  );
 
   Future<bool> _executar(Future<void> escrita) async {
     state = const AsyncLoading();

@@ -68,6 +68,16 @@ class VendaRepository {
     await lote.commit();
   }
 
+  /// Grava a observação pós-venda (RF26, KAN-29). Texto vazio limpa o
+  /// campo.
+  Future<void> salvarObservacao(String vendaId, String observacao) {
+    final texto = observacao.trim();
+    return _vendas.doc(vendaId).update({
+      'observacao': texto.isEmpty ? null : texto,
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+  }
+
   /// Quita ou registra pagamento parcial, atualizando o cliente.
   Future<void> registrarPagamento({
     required ParcelaModel parcela,

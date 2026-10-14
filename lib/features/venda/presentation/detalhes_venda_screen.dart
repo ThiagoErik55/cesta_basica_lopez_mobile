@@ -13,11 +13,12 @@ import '../../../core/widgets/status_badge.dart';
 import '../data/venda_model.dart';
 import '../domain/rotulos_venda.dart';
 import '../domain/troca.dart';
+import 'observacao_dialog.dart';
 import 'pos_venda_providers.dart';
 import 'troca_sheet.dart';
 
 /// Detalhes de uma venda registrada: itens, pagamento, parcelas, trocas
-/// (KAN-28).
+/// (KAN-28) e observações pós-venda (KAN-29).
 ///
 /// Recebe o id da venda como argumento da rota.
 class DetalhesVendaScreen extends ConsumerWidget {
@@ -142,6 +143,29 @@ class _Detalhes extends StatelessWidget {
             ),
           ),
         ],
+
+        const SizedBox(height: AppSpacing.lg),
+        SectionHeader(
+          titulo: 'Observações',
+          acao: TextButton(
+            onPressed: () => editarObservacao(context, venda),
+            child: Text(
+              (venda.observacao?.isEmpty ?? true) ? 'Adicionar' : 'Editar',
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Text(
+              (venda.observacao?.isEmpty ?? true)
+                  ? 'Nenhuma observação.'
+                  : venda.observacao!,
+              style: AppTextStyles.body,
+            ),
+          ),
+        ),
 
         const SizedBox(height: AppSpacing.lg),
         SecondaryButton(
