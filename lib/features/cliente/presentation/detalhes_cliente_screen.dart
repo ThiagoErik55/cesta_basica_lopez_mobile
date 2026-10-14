@@ -13,6 +13,7 @@ import '../../../core/widgets/status_badge.dart';
 import '../data/cliente_model.dart';
 import '../domain/status_pagamento.dart';
 import 'cliente_providers.dart';
+import '../../venda/presentation/vendas_cliente_secao.dart';
 import 'credito_cliente_form.dart';
 import 'historico_cliente_secoes.dart';
 
@@ -128,6 +129,10 @@ class _Detalhes extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
 
+        // Vendas reais (Sprint 4). O histórico fictício abaixo continua
+        // até o KAN-18 trocar a fonte de dados.
+        VendasClienteSecao(clienteId: cliente.id),
+        const SizedBox(height: AppSpacing.lg),
         HistoricoComprasSecao(clienteId: cliente.id),
         const SizedBox(height: AppSpacing.lg),
         HistoricoPagamentosSecao(clienteId: cliente.id),
