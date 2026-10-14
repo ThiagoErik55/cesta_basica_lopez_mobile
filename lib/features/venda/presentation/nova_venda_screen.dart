@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/connection_badge.dart';
-import '../../../core/widgets/empty_state.dart';
+import 'nova_venda_providers.dart';
+import 'rodape_venda.dart';
+import 'secao_produtos_venda.dart';
 
-/// Fluxo de nova venda (RF10, RF12, RF18, RF19), aberto pelo botão
-/// central da navegação principal. Placeholder do KAN-10 — o
-/// preenchimento do pedido chega em uma próxima sprint.
+/// Nova venda (RF10), aberta pelo botão central da navegação.
 ///
-/// Tem AppBar com botão de voltar (padrão do Flutter para uma rota
-/// empilhada) porque é um fluxo com começo e fim, não uma aba.
-class NovaVendaScreen extends StatelessWidget {
+/// - KAN-25: listagem de produtos e carrinho
+class NovaVendaScreen extends ConsumerWidget {
   const NovaVendaScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final venda = ref.watch(novaVendaProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nova Venda'),
@@ -25,12 +27,13 @@ class NovaVendaScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: const Center(
-        child: EmptyState(
-          icone: Icons.shopping_cart_outlined,
-          titulo: 'Nova venda em construção',
-          descricao: 'O registro de pedidos chega em uma próxima sprint.',
-        ),
+      body: ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: const [SecaoProdutosVenda()],
+      ),
+      bottomNavigationBar: RodapeVenda(
+        total: venda.total,
+        unidades: venda.unidades,
       ),
     );
   }
