@@ -26,6 +26,19 @@ class ProdutoRepository {
       .snapshots()
       .map((s) => s.docs.map((d) => ProdutoModel.fromMap(d.data())).toList());
 
+  /// Busca por prefixo do nome (RF02, mesmo padrão de ClienteRepository),
+  /// via campo nomeBusca. O limite superior usa o ponto de código mais
+  /// alto do BMP (U+F8FF) para casar qualquer sufixo do prefixo buscado.
+  Stream<List<ProdutoModel>> buscarPorNome(String termo) {
+    final buscado = termo.toLowerCase();
+    return _col
+        .where('deleted', isEqualTo: false)
+        .where('nomeBusca', isGreaterThanOrEqualTo: buscado)
+        .where('nomeBusca', isLessThan: '$buscado')
+        .snapshots()
+        .map((s) => s.docs.map((d) => ProdutoModel.fromMap(d.data())).toList());
+  }
+
   Future<ProdutoModel?> buscarPorId(String id) async {
     final doc = await _col.doc(id).get();
     final data = doc.data();

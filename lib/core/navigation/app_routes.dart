@@ -26,4 +26,11 @@ class AppRoutes {
   /// Edição dos dados cadastrais do cliente (KAN-17). Recebe o
   /// ClienteModel a editar em `arguments` do Navigator.pushNamed.
   static const String editarCliente = '/clientes/editar';
+
+  /// Cadastro de produto (KAN-23), aberto pelo FAB da aba Produtos.
+  static const String cadastroProduto = '/produtos/novo';
+
+  /// Edição de um produto. Recebe o ProdutoModel a editar em
+  /// `arguments` do Navigator.pushNamed.
+  static const String editarProduto = '/produtos/editar';
 }
