@@ -40,7 +40,9 @@ class CestaBasicaApp extends StatelessWidget {
         // navegação principal — abra com Navigator.pushNamed(context,
         // AppRoutes.showcase).
         AppRoutes.showcase: (context) => const ShowcaseScreen(),
-        AppRoutes.novaVenda: (context) => const NovaVendaScreen(),
+        AppRoutes.novaVenda: (context) => NovaVendaScreen(
+          clienteIdInicial: ModalRoute.of(context)!.settings.arguments as String?,
+        ),
         AppRoutes.cadastroCliente: (context) => const CadastroClienteScreen(),
         AppRoutes.detalheCliente: (context) => DetalhesClienteScreen(
           clienteId: ModalRoute.of(context)!.settings.arguments! as String,
