@@ -7,14 +7,17 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatadores.dart';
 import '../../../core/widgets/connection_badge.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../data/venda_model.dart';
 import '../domain/rotulos_venda.dart';
+import '../domain/troca.dart';
 import 'pos_venda_providers.dart';
+import 'troca_sheet.dart';
 
-/// Detalhes de uma venda registrada (KAN-27): itens, pagamento e
-/// parcelas.
+/// Detalhes de uma venda registrada: itens, pagamento, parcelas, trocas
+/// (KAN-28).
 ///
 /// Recebe o id da venda como argumento da rota.
 class DetalhesVendaScreen extends ConsumerWidget {
@@ -70,6 +73,9 @@ class _Detalhes extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pagamento = venda.formaPagamento?.rotulo ?? venda.tipo.rotulo;
+    final podeTrocar = venda.itens.any(
+      (i) => quantidadeTrocavel(venda, i) > 0,
+    );
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -111,8 +117,47 @@ class _Detalhes extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           _Parcelas(vendaId: venda.id),
         ],
+
+        if (venda.trocas.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          const SectionHeader(titulo: 'Trocas'),
+          const SizedBox(height: AppSpacing.sm),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                children: [
+                  for (final troca in venda.trocas)
+                    _Linha(
+                      titulo:
+                          '${troca.quantidade}x ${_nomeOriginal(troca)} → '
+                          '${troca.produtoNovoNome}',
+                      detalhe: formatarData(troca.data),
+                      valor: troca.diferencaValor == 0
+                          ? '—'
+                          : formatarMoeda(troca.diferencaValor),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+
+        const SizedBox(height: AppSpacing.lg),
+        SecondaryButton(
+          texto: 'Registrar troca',
+          onPressed: podeTrocar ? () => registrarTroca(context, venda) : null,
+        ),
+        const SizedBox(height: AppSpacing.lg),
       ],
     );
+  }
+
+  String _nomeOriginal(TrocaItem troca) {
+    for (final item in venda.itens) {
+      if (item.id == troca.itemOriginalId) return item.nome;
+    }
+    return 'Produto';
   }
 }
 

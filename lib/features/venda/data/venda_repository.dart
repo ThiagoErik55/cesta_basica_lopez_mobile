@@ -46,6 +46,28 @@ class VendaRepository {
     await lote.commit();
   }
 
+  /// Registra a troca de um item em venda já concluída (RF25, KAN-28):
+  /// acrescenta a troca à venda, atualiza a observação (RF26) e grava os
+  /// movimentos de estoque (devolução do original e saída do novo).
+  ///
+  /// A troca entra com arrayUnion, e não reescrevendo a lista inteira:
+  /// duas trocas feitas offline na mesma venda não se sobrescrevem.
+  Future<void> registrarTroca({
+    required String vendaId,
+    required TrocaItem troca,
+    required String observacao,
+    required List<MovimentoEstoqueModel> movimentos,
+  }) async {
+    final lote = _db.batch();
+    lote.update(_vendas.doc(vendaId), {
+      'trocas': FieldValue.arrayUnion([troca.toMap()]),
+      'observacao': observacao,
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+    _gravarMovimentos(lote, movimentos);
+    await lote.commit();
+  }
+
   /// Quita ou registra pagamento parcial, atualizando o cliente.
   Future<void> registrarPagamento({
     required ParcelaModel parcela,
