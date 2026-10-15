@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/cliente/presentation/clientes_screen.dart';
-import '../../features/estoque/presentation/estoque_screen.dart';
 import '../../features/financeiro/presentation/financeiro_screen.dart';
+import '../../features/produto/presentation/produtos_screen.dart';
 import '../../features/rota/presentation/agenda_screen.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -26,7 +26,7 @@ class MainShell extends ConsumerWidget {
   static const List<Widget> _abas = [
     AgendaScreen(),
     ClientesScreen(),
-    EstoqueScreen(),
+    ProdutosScreen(),
     FinanceiroScreen(),
   ];
 
@@ -66,7 +66,7 @@ class MainShell extends ConsumerWidget {
             const SizedBox(width: AppSpacing.xl),
             _ItemNavegacao(
               icone: Icons.inventory_2_outlined,
-              rotulo: 'Estoque',
+              rotulo: 'Produtos',
               selecionado: abaAtual == 2,
               onTap: () => navegacao.selecionar(2),
             ),
