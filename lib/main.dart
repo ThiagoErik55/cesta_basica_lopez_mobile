@@ -12,6 +12,8 @@ import 'features/cliente/presentation/cadastro_cliente_screen.dart';
 import 'features/cliente/presentation/detalhes_cliente_screen.dart';
 import 'features/produto/data/produto_model.dart';
 import 'features/produto/presentation/cadastro_produto_screen.dart';
+import 'features/venda/presentation/comprovante_pagamento_screen.dart';
+import 'features/venda/presentation/comprovante_providers.dart';
 import 'features/venda/presentation/detalhes_venda_screen.dart';
 import 'features/venda/presentation/nova_venda_screen.dart';
 import 'features/venda/presentation/promissorias_screen.dart';
@@ -50,6 +52,9 @@ class CestaBasicaApp extends StatelessWidget {
         ),
         AppRoutes.detalheVenda: (context) => DetalhesVendaScreen(
           vendaId: ModalRoute.of(context)!.settings.arguments! as String,
+        ),
+        AppRoutes.comprovante: (context) => ComprovantePagamentoScreen(
+          args: ModalRoute.of(context)!.settings.arguments! as ComprovanteArgs,
         ),
         AppRoutes.promissorias: (context) => PromissoriasScreen(
           clienteId: ModalRoute.of(context)!.settings.arguments as String?,

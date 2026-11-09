@@ -20,6 +20,10 @@ class AppRoutes {
   /// cliente (String) em `arguments` para listar só as dele.
   static const String promissorias = '/promissorias';
 
+  /// Comprovante de um pagamento (KAN-36). Recebe um `ComprovanteArgs`
+  /// (venda, parcela e pagamento) em `arguments`.
+  static const String comprovante = '/comprovante';
+
   /// Cadastro de cliente (RF01), aberto pelo FAB da aba Clientes.
   static const String cadastroCliente = '/clientes/novo';
 
