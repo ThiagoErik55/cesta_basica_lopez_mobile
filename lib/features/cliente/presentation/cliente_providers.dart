@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/domain/enums.dart';
+import '../../../core/providers/regra_bloqueio_provider.dart';
 import '../../../core/utils/id_generator.dart';
 import '../data/cliente_model.dart';
 import '../data/cliente_repository.dart';
+import '../domain/bloqueio_cliente.dart';
 import '../domain/dados_cadastrais_cliente.dart';
 import '../domain/status_pagamento.dart';
 
@@ -49,15 +51,22 @@ final _clientesBuscadosProvider =
     });
 
 /// Lista exibida na tela de clientes: o resultado da busca por nome,
-/// filtrado pelo status de pagamento selecionado (KAN-16).
+/// filtrado pelo status de pagamento selecionado (KAN-16). O status
+/// inclui o bloqueio automático por atraso ou limite (KAN-35), então o
+/// filtro "Bloqueado" também traz os bloqueados pela regra.
 final clientesProvider = Provider.autoDispose<AsyncValue<List<ClienteModel>>>((
   ref,
 ) {
   final status = ref.watch(filtroClientesProvider.select((f) => f.status));
   final buscados = ref.watch(_clientesBuscadosProvider);
   if (status == null) return buscados;
+  final regra = ref.watch(regraBloqueioProvider);
   return buscados.whenData(
-    (lista) => lista.where((c) => statusPagamento(c) == status).toList(),
+    (lista) => lista
+        .where(
+          (c) => situacaoDoClientePeloResumo(c, regra: regra).status == status,
+        )
+        .toList(),
   );
 });
 

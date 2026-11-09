@@ -11,8 +11,10 @@ import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/score_badge.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/providers/regra_bloqueio_provider.dart';
+import '../../venda/presentation/promissorias_providers.dart';
 import '../data/cliente_model.dart';
-import '../domain/status_pagamento.dart';
+import '../domain/bloqueio_cliente.dart';
 import 'cliente_providers.dart';
 import 'credito_cliente_form.dart';
 import 'historico_cliente_secoes.dart';
@@ -78,13 +80,42 @@ class DetalhesClienteScreen extends ConsumerWidget {
   }
 }
 
-class _Detalhes extends StatelessWidget {
+class _Detalhes extends ConsumerWidget {
   const _Detalhes({required this.cliente});
 
   final ClienteModel cliente;
 
+  /// Situação com o bloqueio automático (KAN-35). Usa as parcelas
+  /// pendentes de todas as vendas do cliente, que são a fonte
+  /// autoritativa; até carregarem, vale o resumo do próprio cliente.
+  SituacaoCliente _situacao(WidgetRef ref) {
+    final regra = ref.watch(regraBloqueioProvider);
+    final itens = ref.watch(promissoriasProvider(cliente.id)).value;
+    if (itens == null) {
+      return situacaoDoClientePeloResumo(cliente, regra: regra);
+    }
+    final agora = DateTime.now();
+    return situacaoDoCliente(
+      cliente,
+      avaliarBloqueio(
+        cliente: cliente,
+        parcelasPendentes: [
+          for (final i in itens)
+            for (final p in i.promissoria.parcelas)
+              if (!p.pago) p,
+        ],
+        agora: agora,
+        regra: regra,
+      ),
+      agora: agora,
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final situacao = _situacao(ref);
+    final saldoVencido = situacao.bloqueio?.saldoVencido ?? 0;
+
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.md),
       children: [
@@ -96,9 +127,18 @@ class _Detalhes extends StatelessWidget {
           children: [
             ScoreBadge(cliente.score),
             const SizedBox(width: AppSpacing.sm),
-            StatusBadge.pagamento(statusPagamento(cliente)),
+            StatusBadge.pagamento(situacao.status),
           ],
         ),
+        if (situacao.motivo != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            // Ex.: "Atraso de 23 dias · R$ 120,00 vencido".
+            '${situacao.motivo}'
+            '${situacao.bloqueio?.motivo == MotivoBloqueio.atrasoAcimaDoLimite && saldoVencido > 0 ? ' · ${formatarMoeda(saldoVencido)} vencido' : ''}',
+            style: AppTextStyles.caption,
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
 
         const SectionHeader(titulo: 'Dados cadastrais'),
