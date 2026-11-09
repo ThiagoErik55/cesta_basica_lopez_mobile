@@ -9,15 +9,19 @@ import '../data/parcela_model.dart';
 class AtualizacaoClienteVenda {
   const AtualizacaoClienteVenda({
     required this.clienteId,
-    required this.ultimaCompra,
+    this.ultimaCompra,
     this.acrescimoEmAberto = 0,
     this.proximoVencimento,
   });
 
   final String clienteId;
-  final DateTime ultimaCompra;
 
-  /// Soma das parcelas pendentes geradas pela venda; 0 em venda à vista.
+  /// `null` quando a operação não é uma compra (ex. alteração de parcela).
+  final DateTime? ultimaCompra;
+
+  /// Variação do valor em aberto: soma das parcelas geradas por uma
+  /// venda parcelada (0 em venda à vista) ou diferença de uma parcela
+  /// alterada (pode ser negativa).
   final double acrescimoEmAberto;
 
   /// Menor vencimento pendente do cliente depois da venda; `null` em

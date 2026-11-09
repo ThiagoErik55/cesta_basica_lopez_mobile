@@ -10,6 +10,7 @@ import '../../produto/data/produto_model.dart';
 import '../data/parcela_model.dart';
 import '../data/venda_model.dart';
 import '../data/venda_repository.dart';
+import '../domain/alteracao_parcela.dart';
 import '../domain/troca.dart';
 
 /// Venda por id, em tempo real (tela de detalhes da venda).
@@ -32,9 +33,10 @@ final vendasDoClienteProvider = StreamProvider.autoDispose
           ref.watch(vendaRepositoryProvider).observarPorCliente(clienteId),
     );
 
-final posVendaProvider = AsyncNotifierProvider.autoDispose<PosVendaNotifier, void>(
-  PosVendaNotifier.new,
-);
+final posVendaProvider =
+    AsyncNotifierProvider.autoDispose<PosVendaNotifier, void>(
+      PosVendaNotifier.new,
+    );
 
 /// Ações sobre uma venda já registrada: troca (KAN-28) e observação
 /// (KAN-29). Os métodos retornam `true` se o servidor confirmou e
@@ -127,6 +129,39 @@ class PosVendaNotifier extends AsyncNotifier<void> {
             troca: troca,
             observacao: observacao,
             movimentos: movimentos,
+          ),
+    );
+  }
+
+  /// Altera o valor de uma parcela pendente (KAN-32). O cálculo é refeito
+  /// aqui com os dados atuais; se a alteração for recusada pelas regras
+  /// do domínio, lança [ArgumentError] com a mensagem.
+  Future<bool> registrarAlteracaoParcela({
+    required VendaModel venda,
+    required List<ParcelaModel> parcelas,
+    required String parcelaId,
+    required double novoValor,
+    required ModoCompensacao modo,
+    String? motivo,
+  }) {
+    final resultado = alterarValorParcela(
+      parcelas: parcelas,
+      parcelaId: parcelaId,
+      novoValor: novoValor,
+      modo: modo,
+      valorTotalVenda: venda.valorTotal,
+      motivo: motivo,
+    );
+    if (!resultado.ok) throw ArgumentError(resultado.erro);
+
+    return _executar(
+      ref
+          .read(vendaRepositoryProvider)
+          .alterarValoresParcelas(
+            vendaId: venda.id,
+            clienteId: venda.clienteId,
+            alteracoes: resultado.alteradas,
+            diferencaTotal: resultado.diferencaTotal,
           ),
     );
   }

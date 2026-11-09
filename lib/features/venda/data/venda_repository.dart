@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/firebase_providers.dart';
 import '../../cliente/data/cliente_model.dart';
 import '../../estoque/data/movimento_estoque_model.dart';
+import '../domain/alteracao_parcela.dart';
 import '../domain/atualizacao_cliente.dart';
 import 'parcela_model.dart';
 import 'venda_model.dart';
@@ -53,13 +54,57 @@ class VendaRepository {
   void _atualizarCliente(WriteBatch lote, AtualizacaoClienteVenda c) {
     final agora = DateTime.now().toIso8601String();
     lote.update(_clientes.doc(c.clienteId), {
-      'ultimaCompra': c.ultimaCompra.toIso8601String(),
-      if (c.acrescimoEmAberto > 0)
+      if (c.ultimaCompra != null)
+        'ultimaCompra': c.ultimaCompra!.toIso8601String(),
+      if (c.acrescimoEmAberto != 0)
         'valorEmAberto': FieldValue.increment(c.acrescimoEmAberto),
       if (c.proximoVencimento != null)
         'proximoVencimento': c.proximoVencimento!.toIso8601String(),
       'updatedAt': agora,
     });
+  }
+
+  /// Grava a alteração do valor de parcelas pendentes (KAN-32) em um
+  /// único batch: as parcelas, o total da venda e o valor em aberto do
+  /// cliente, quando a [diferencaTotal] não é zero.
+  ///
+  /// Nada é regravado por inteiro. A parcela recebe o valor novo e o
+  /// registro entra no histórico com arrayUnion; total da venda e valor
+  /// em aberto usam FieldValue.increment. Assim, alterações simultâneas
+  /// feitas offline não se sobrescrevem (ADR 001). Os vencimentos não
+  /// mudam, então `proximoVencimento` do cliente continua válido.
+  Future<void> alterarValoresParcelas({
+    required String vendaId,
+    required String clienteId,
+    required List<ParcelaAlterada> alteracoes,
+    required double diferencaTotal,
+  }) async {
+    final lote = _db.batch();
+    final agora = DateTime.now().toIso8601String();
+
+    for (final a in alteracoes) {
+      lote.update(_parcelas(vendaId).doc(a.parcelaId), {
+        'valor': a.alteracao.valorNovo,
+        'alteracoes': FieldValue.arrayUnion([a.alteracao.toMap()]),
+        'updatedAt': agora,
+      });
+    }
+
+    if (diferencaTotal != 0) {
+      lote.update(_vendas.doc(vendaId), {
+        'valorTotal': FieldValue.increment(diferencaTotal),
+        'updatedAt': agora,
+      });
+      _atualizarCliente(
+        lote,
+        AtualizacaoClienteVenda(
+          clienteId: clienteId,
+          acrescimoEmAberto: diferencaTotal,
+        ),
+      );
+    }
+
+    await lote.commit();
   }
 
   /// Registra a troca de um item em venda já concluída (RF25, KAN-28):

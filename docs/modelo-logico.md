@@ -2,7 +2,7 @@
 
 **Projeto:** Sistema de Força de Vendas — Cesta Básica Lopez
 **Projeto Integrador III — Faculdade Donaduzzi — Grupo 01**
-**Versão:** 1.2 · Sprint 2
+**Versão:** 1.3 · Sprint 5
 **Referência:** Levantamento de Requisitos v01, ADR 001, ADR 002
 
 ---
@@ -415,6 +415,7 @@ Plano de pagamento de uma venda parcelada (RF13, RF14, RF15).
 | vencimento | date | Data prevista de recebimento (RF09) |
 | pago | bool | Quitada |
 | dataPagamento | date | Data efetiva da quitação |
+| alteracoes | lista | Histórico das alterações de `valor` (RF15): `valorAnterior`, `valorNovo`, `data` e `motivo` opcional. Estrutura embutida, vazia enquanto o valor original não mudou |
 
 ### PAGAMENTO
 Registro de recebimento, permitindo pagamento parcial (RF16).
@@ -462,7 +463,7 @@ dos atributos listados:
 | updatedAt | datetime | Última alteração, usada na resolução de conflitos |
 | deleted | bool | Exclusão lógica — exclusão física quebra a sincronização offline |
 
-As estruturas embutidas — ITEM_VENDA, TROCA_ITEM e PAGAMENTO — não possuem
+As estruturas embutidas — ITEM_VENDA, TROCA_ITEM, PAGAMENTO e as alterações de valor da PARCELA — não possuem
 esses atributos: não constituem documentos independentes e acompanham o
 ciclo de vida e a sincronização do documento que as contém.
 
@@ -512,6 +513,7 @@ O banco adotado é o Cloud Firestore, orientado a documentos. O modelo lógico a
 | VENDA 1:N TROCA_ITEM | Array `trocas` embutido no documento da venda | Poucos registros por venda, sempre lidos junto com ela |
 | VENDA 1:N PARCELA | Subcoleção `vendas/{id}/parcelas` | Possuem ciclo de vida próprio e são consultadas por vencimento |
 | PARCELA 1:N PAGAMENTO | Array `pagamentos` embutido na parcela | Poucos registros por parcela, sempre lidos em conjunto |
+| PARCELA 1:N alteração de valor | Array `alteracoes` embutido na parcela | Poucos registros por parcela, sempre lidos em conjunto; gravado com `arrayUnion` para não perder alterações feitas offline |
 | CLIENTE 1:N VENDA | Campo `clienteId` mais `clienteNome` duplicado | Desnormalização evita busca do cliente ao listar vendas |
 | ROTA 1:N CLIENTE | Campo `rotaId` no documento do cliente | Referência simples por identificador |
 | ROTA 1:N VISITA | Campo `rotaId` no documento da visita | Referência simples por identificador |
@@ -563,6 +565,7 @@ As seguintes operações alteram mais de um documento e devem ser executadas em 
 |---|---|
 | Registrar venda parcelada | `vendas/{id}`, `vendas/{id}/parcelas/*`, `clientes/{id}`, `movimentosEstoque/*` |
 | Quitar parcela | `vendas/{id}/parcelas/{id}`, `clientes/{id}` |
+| Alterar valor de parcela | `vendas/{id}/parcelas/*`, `vendas/{id}` (se o total mudar), `clientes/{id}` (se o valor em aberto mudar) |
 | Registrar troca | `vendas/{id}`, `movimentosEstoque/*` |
 | Registrar entrada de estoque | `produtos/{id}`, `movimentosEstoque/*` |
 
@@ -607,3 +610,4 @@ As entidades CLIENTE e VENDA armazenam dados pessoais (CPF, endereço, telefone 
 | 10/09/2026 | 1.0 | Versão inicial do modelo lógico, elaborada na Sprint 2 a partir do Levantamento de Requisitos v01 e do ADR 001. |
 | 16/09/2026 | 1.1 | Aplicação do ADR 002: identificação por CPF confirmada; PROMISSORIA convertida em visão derivada; inclusão de `custoAtual`, `custoUnitario` e apuração de lucro real; entidade TROCA_ITEM criada; atributo `id` acrescentado a ITEM_VENDA; `fiado` removido das formas de pagamento e `formaPagamento` tornada opcional; `proximoVencimento` e `valorEmAberto` acrescentados a CLIENTE; `numeroNota` acrescentado a VENDA; documento `configuracoes/geral` previsto. |
 | 16/09/2026 | 1.2 | Ajustes de documentação decorrentes da implementação: escopo dos atributos comuns restrito às entidades com coleção própria; registro das desnormalizações de `ITEM_VENDA.nome`, `TROCA_ITEM.produtoNovoNome`, `VISITA.clienteNome` e `MOVIMENTO_ESTOQUE.vendedorUid`; nota sobre ausência de chave estrangeira em estruturas embutidas. |
+| 09/11/2026 | 1.3 | Alteração do valor de parcela (KAN-32): atributo `alteracoes` acrescentado a PARCELA como estrutura embutida; operação "Alterar valor de parcela" incluída entre as escritas em lote. |
