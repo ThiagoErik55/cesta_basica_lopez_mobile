@@ -14,6 +14,7 @@ import '../../produto/data/produto_repository.dart';
 import '../data/parcela_model.dart';
 import '../data/venda_model.dart';
 import '../data/venda_repository.dart';
+import '../domain/atualizacao_cliente.dart';
 import '../domain/calculo_parcelas.dart';
 import '../domain/carrinho.dart';
 import '../domain/pendencia_cliente.dart';
@@ -97,6 +98,12 @@ class NovaVendaState {
     if (pagamento == null) return 'Escolha a forma de pagamento.';
     if (parcelado && !(pendencia?.permiteParcelado ?? true)) {
       return 'Cliente bloqueado: escolha um pagamento à vista.';
+    }
+    if (parcelado) {
+      return validarParcelamento(
+        quantidade: numeroParcelas,
+        primeiroVencimento: primeiroVencimento,
+      );
     }
     return null;
   }
@@ -264,16 +271,18 @@ class NovaVendaNotifier extends Notifier<NovaVendaState> {
           tipo: TipoMovimento.saida,
           quantidade: item.quantidade,
           data: agora,
+          custoUnitario: item.produto.custoAtual,
           vendedorUid: vendedorUid,
           updatedAt: agora,
         ),
     ];
 
-    final clienteAtualizado = _atualizarCliente(
-      cliente,
+    final atualizacaoCliente = atualizacaoClienteDaVenda(
+      clienteId: cliente.id,
       agora: agora,
-      valorParcelado: s.parcelado ? total : 0,
-      primeiroVencimento: parcelas.isEmpty ? null : parcelas.first.vencimento,
+      parcelas: parcelas,
+      valorEmAbertoAtual: cliente.valorEmAberto,
+      proximoVencimentoAtual: cliente.proximoVencimento,
     );
 
     final escrita = ref
@@ -282,35 +291,13 @@ class NovaVendaNotifier extends Notifier<NovaVendaState> {
           venda: venda,
           parcelas: parcelas,
           movimentos: movimentos,
-          clienteAtualizado: clienteAtualizado,
+          cliente: atualizacaoCliente,
         );
     final sincronizado = await escrita
         .then((_) => true)
         .timeout(_esperaConfirmacao, onTimeout: () => false);
 
     return VendaFinalizada(venda: venda, sincronizado: sincronizado);
-  }
-
-  /// Última compra sempre; valor em aberto e próximo vencimento só em
-  /// venda parcelada (campos desnormalizados, ADR 002 decisão 6).
-  ClienteModel _atualizarCliente(
-    ClienteModel cliente, {
-    required DateTime agora,
-    required double valorParcelado,
-    required DateTime? primeiroVencimento,
-  }) {
-    if (primeiroVencimento == null) {
-      return cliente.copyWith(ultimaCompra: agora);
-    }
-    final atual = cliente.temDebito ? cliente.proximoVencimento : null;
-    final proximo = atual != null && atual.isBefore(primeiroVencimento)
-        ? atual
-        : primeiroVencimento;
-    return cliente.copyWith(
-      ultimaCompra: agora,
-      valorEmAberto: cliente.valorEmAberto + valorParcelado,
-      proximoVencimento: proximo,
-    );
   }
 }
 

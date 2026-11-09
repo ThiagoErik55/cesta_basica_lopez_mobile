@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/firebase_providers.dart';
 import '../../cliente/data/cliente_model.dart';
 import '../../estoque/data/movimento_estoque_model.dart';
+import '../domain/atualizacao_cliente.dart';
 import 'parcela_model.dart';
 import 'venda_model.dart';
 
@@ -29,7 +30,7 @@ class VendaRepository {
     required VendaModel venda,
     required List<ParcelaModel> parcelas,
     required List<MovimentoEstoqueModel> movimentos,
-    required ClienteModel clienteAtualizado,
+    required AtualizacaoClienteVenda cliente,
   }) async {
     final lote = _db.batch();
 
@@ -41,9 +42,24 @@ class VendaRepository {
 
     _gravarMovimentos(lote, movimentos);
 
-    lote.set(_clientes.doc(clienteAtualizado.id), clienteAtualizado.toMap());
+    _atualizarCliente(lote, cliente);
 
     await lote.commit();
+  }
+
+  /// Atualiza só os campos que a venda altera. O valor em aberto soma no
+  /// servidor (FieldValue.increment), então duas vendas parceladas feitas
+  /// offline para o mesmo cliente não perdem o débito uma da outra.
+  void _atualizarCliente(WriteBatch lote, AtualizacaoClienteVenda c) {
+    final agora = DateTime.now().toIso8601String();
+    lote.update(_clientes.doc(c.clienteId), {
+      'ultimaCompra': c.ultimaCompra.toIso8601String(),
+      if (c.acrescimoEmAberto > 0)
+        'valorEmAberto': FieldValue.increment(c.acrescimoEmAberto),
+      if (c.proximoVencimento != null)
+        'proximoVencimento': c.proximoVencimento!.toIso8601String(),
+      'updatedAt': agora,
+    });
   }
 
   /// Registra a troca de um item em venda já concluída (RF25, KAN-28):
