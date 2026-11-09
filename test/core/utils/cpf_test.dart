@@ -48,4 +48,16 @@ void main() {
       expect(_aplicar(MascaraFormatter.telefone(), '45'), '(45');
     });
   });
+
+  group('mascararCpf', () {
+    test('mostra só os 3 primeiros e os 2 últimos dígitos', () {
+      expect(mascararCpf('529.982.247-25'), '529.***.***-25');
+      expect(mascararCpf('52998224725'), '529.***.***-25');
+    });
+
+    test('CPF incompleto fica todo oculto', () {
+      expect(mascararCpf('123'), '***.***.***-**');
+      expect(mascararCpf(''), '***.***.***-**');
+    });
+  });
 }
