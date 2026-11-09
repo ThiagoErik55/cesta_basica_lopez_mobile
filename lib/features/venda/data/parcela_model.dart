@@ -7,12 +7,14 @@ class PagamentoModel {
   final double valor;
   final DateTime data;
   final FormaPagamento forma;
+  final String? observacao;
 
   const PagamentoModel({
     required this.id,
     required this.valor,
     required this.data,
     required this.forma,
+    this.observacao,
   });
 
   Map<String, dynamic> toMap() => {
@@ -20,6 +22,7 @@ class PagamentoModel {
     'valor': valor,
     'data': data.toIso8601String(),
     'forma': forma.name,
+    'observacao': observacao,
   };
 
   factory PagamentoModel.fromMap(Map<String, dynamic> map) => PagamentoModel(
@@ -31,6 +34,7 @@ class PagamentoModel {
       map['forma'],
       FormaPagamento.dinheiro,
     ),
+    observacao: map['observacao'] as String?,
   );
 }
 

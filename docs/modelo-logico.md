@@ -2,7 +2,7 @@
 
 **Projeto:** Sistema de Força de Vendas — Cesta Básica Lopez
 **Projeto Integrador III — Faculdade Donaduzzi — Grupo 01**
-**Versão:** 1.3 · Sprint 5
+**Versão:** 1.4 · Sprint 5
 **Referência:** Levantamento de Requisitos v01, ADR 001, ADR 002
 
 ---
@@ -426,7 +426,10 @@ Registro de recebimento, permitindo pagamento parcial (RF16).
 | parcelaId | uuid | FK para PARCELA |
 | valor | decimal | Valor recebido |
 | data | datetime | Momento do recebimento |
-| forma | enum | Meio utilizado |
+| forma | enum | Meio utilizado: `pix`, `credito`, `debito`, `valeAlimentacao` ou `dinheiro` |
+| observacao | string | Opcional. Anotação do vendedor sobre o recebimento |
+
+Estrutura embutida na PARCELA. O vínculo com a venda e com o cliente é dado pelo documento que a contém (`PARCELA.vendaId` e `VENDA.clienteId`). Quitação da venda não é armazenada: deriva de todas as parcelas com `pago = true` (seção 4).
 
 ### MOVIMENTO_ESTOQUE
 Entrada, saída ou troca de produto (RF22, RF23, RF25).
@@ -564,7 +567,7 @@ As seguintes operações alteram mais de um documento e devem ser executadas em 
 | Operação | Documentos afetados |
 |---|---|
 | Registrar venda parcelada | `vendas/{id}`, `vendas/{id}/parcelas/*`, `clientes/{id}`, `movimentosEstoque/*` |
-| Quitar parcela | `vendas/{id}/parcelas/{id}`, `clientes/{id}` |
+| Registrar pagamento de parcela | `vendas/{id}/parcelas/{id}` (pagamento embutido), `clientes/{id}` (`valorEmAberto` e `proximoVencimento`) |
 | Alterar valor de parcela | `vendas/{id}/parcelas/*`, `vendas/{id}` (se o total mudar), `clientes/{id}` (se o valor em aberto mudar) |
 | Registrar troca | `vendas/{id}`, `movimentosEstoque/*` |
 | Registrar entrada de estoque | `produtos/{id}`, `movimentosEstoque/*` |
@@ -611,3 +614,4 @@ As entidades CLIENTE e VENDA armazenam dados pessoais (CPF, endereço, telefone 
 | 16/09/2026 | 1.1 | Aplicação do ADR 002: identificação por CPF confirmada; PROMISSORIA convertida em visão derivada; inclusão de `custoAtual`, `custoUnitario` e apuração de lucro real; entidade TROCA_ITEM criada; atributo `id` acrescentado a ITEM_VENDA; `fiado` removido das formas de pagamento e `formaPagamento` tornada opcional; `proximoVencimento` e `valorEmAberto` acrescentados a CLIENTE; `numeroNota` acrescentado a VENDA; documento `configuracoes/geral` previsto. |
 | 16/09/2026 | 1.2 | Ajustes de documentação decorrentes da implementação: escopo dos atributos comuns restrito às entidades com coleção própria; registro das desnormalizações de `ITEM_VENDA.nome`, `TROCA_ITEM.produtoNovoNome`, `VISITA.clienteNome` e `MOVIMENTO_ESTOQUE.vendedorUid`; nota sobre ausência de chave estrangeira em estruturas embutidas. |
 | 09/11/2026 | 1.3 | Alteração do valor de parcela (KAN-32): atributo `alteracoes` acrescentado a PARCELA como estrutura embutida; operação "Alterar valor de parcela" incluída entre as escritas em lote. |
+| 09/11/2026 | 1.4 | Registro de pagamento e histórico financeiro (KAN-33): atributo `observacao` acrescentado a PAGAMENTO; esclarecido o vínculo do pagamento com venda e cliente por meio dos documentos que o contêm; operação "Quitar parcela" renomeada para "Registrar pagamento de parcela", que também cobre pagamento parcial. |
