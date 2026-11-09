@@ -23,7 +23,9 @@ class SecaoPagamentoVenda extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(novaVendaProvider.notifier);
-    final permiteParcelado = venda.pendencia?.permiteParcelado ?? true;
+    final pendencia = venda.pendencia;
+    final permiteParcelado = pendencia?.permiteParcelado ?? true;
+    final permiteAVista = pendencia?.permiteAVista ?? true;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -39,8 +41,9 @@ class SecaoPagamentoVenda extends ConsumerWidget {
                 rotulo: forma.rotulo,
                 icone: _iconeForma(forma),
                 selecionado: venda.pagamento == PagamentoAVista(forma),
-                onTap: () =>
-                    notifier.selecionarPagamento(PagamentoAVista(forma)),
+                onTap: permiteAVista
+                    ? () => notifier.selecionarPagamento(PagamentoAVista(forma))
+                    : null,
               ),
             _OpcaoPagamentoChip(
               rotulo: 'Parcelado',
@@ -53,12 +56,10 @@ class SecaoPagamentoVenda extends ConsumerWidget {
             ),
           ],
         ),
-        if (!permiteParcelado) ...[
+        // Motivo do bloqueio (KAN-35): manual, atraso ou limite.
+        if (pendencia != null && (!permiteParcelado || !permiteAVista)) ...[
           const SizedBox(height: AppSpacing.xs),
-          const Text(
-            'Parcelado indisponível para cliente bloqueado.',
-            style: AppTextStyles.caption,
-          ),
+          Text(pendencia.mensagens.first, style: AppTextStyles.caption),
         ],
         if (venda.parcelado) ...[
           const SizedBox(height: AppSpacing.md),
