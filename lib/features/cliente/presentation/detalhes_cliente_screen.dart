@@ -7,6 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatadores.dart';
 import '../../../core/widgets/connection_badge.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/score_badge.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
@@ -125,6 +126,14 @@ class _Detalhes extends StatelessWidget {
               formatarData(cliente.ultimaCompra, vazio: 'Nenhuma'),
             ),
           ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+
+        SecondaryButton(
+          texto: 'Ver promissórias',
+          onPressed: () =>
+              Navigator.of(context)
+                  .pushNamed(AppRoutes.promissorias, arguments: cliente.id),
         ),
         const SizedBox(height: AppSpacing.lg),
 

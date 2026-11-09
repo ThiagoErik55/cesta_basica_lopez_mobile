@@ -16,6 +16,10 @@ class AppRoutes {
   /// id da venda (String) em `arguments` do Navigator.pushNamed.
   static const String detalheVenda = '/vendas/detalhe';
 
+  /// Controle de promissórias (KAN-34). Opcionalmente recebe o id do
+  /// cliente (String) em `arguments` para listar só as dele.
+  static const String promissorias = '/promissorias';
+
   /// Cadastro de cliente (RF01), aberto pelo FAB da aba Clientes.
   static const String cadastroCliente = '/clientes/novo';
 
