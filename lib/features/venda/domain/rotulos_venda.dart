@@ -29,3 +29,13 @@ extension SituacaoCompraRotulo on SituacaoCompra {
     SituacaoCompra.quitada => 'Quitada',
   };
 }
+
+/// Rótulos da situação de uma promissória (KAN-34): `aberta` sem parcela
+/// vencida aparece como "Em dia".
+extension StatusPromissoriaRotulo on StatusPromissoria {
+  String get rotulo => switch (this) {
+    StatusPromissoria.aberta => 'Em dia',
+    StatusPromissoria.atrasada => 'Em atraso',
+    StatusPromissoria.paga => 'Quitada',
+  };
+}
