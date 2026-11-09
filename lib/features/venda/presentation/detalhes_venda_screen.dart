@@ -10,9 +10,11 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../data/parcela_model.dart';
 import '../data/venda_model.dart';
 import '../domain/rotulos_venda.dart';
 import '../domain/troca.dart';
+import 'alterar_valor_parcela_sheet.dart';
 import 'observacao_dialog.dart';
 import 'pos_venda_providers.dart';
 import 'troca_sheet.dart';
@@ -74,9 +76,7 @@ class _Detalhes extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pagamento = venda.formaPagamento?.rotulo ?? venda.tipo.rotulo;
-    final podeTrocar = venda.itens.any(
-      (i) => quantidadeTrocavel(venda, i) > 0,
-    );
+    final podeTrocar = venda.itens.any((i) => quantidadeTrocavel(venda, i) > 0);
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -116,7 +116,7 @@ class _Detalhes extends StatelessWidget {
 
         if (venda.ehPromissoria) ...[
           const SizedBox(height: AppSpacing.lg),
-          _Parcelas(vendaId: venda.id),
+          _Parcelas(venda: venda),
         ],
 
         if (venda.trocas.isNotEmpty) ...[
@@ -186,13 +186,13 @@ class _Detalhes extends StatelessWidget {
 }
 
 class _Parcelas extends ConsumerWidget {
-  const _Parcelas({required this.vendaId});
+  const _Parcelas({required this.venda});
 
-  final String vendaId;
+  final VendaModel venda;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final parcelas = ref.watch(parcelasDaVendaProvider(vendaId));
+    final parcelas = ref.watch(parcelasDaVendaProvider(venda.id));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -206,30 +206,7 @@ class _Parcelas extends ConsumerWidget {
               data: (lista) => Column(
                 children: [
                   for (final p in lista)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.xs,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${p.numero}ª · ${formatarData(p.vencimento)}',
-                              style: AppTextStyles.body,
-                            ),
-                          ),
-                          if (p.pago)
-                            const StatusBadge.emDia()
-                          else if (p.atrasada)
-                            const StatusBadge.vencido(),
-                          const SizedBox(width: AppSpacing.sm),
-                          Text(
-                            formatarMoeda(p.valor),
-                            style: AppTextStyles.money,
-                          ),
-                        ],
-                      ),
-                    ),
+                    _LinhaParcela(venda: venda, parcela: p),
                 ],
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -244,6 +221,65 @@ class _Parcelas extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _LinhaParcela extends StatelessWidget {
+  const _LinhaParcela({required this.venda, required this.parcela});
+
+  final VendaModel venda;
+  final ParcelaModel parcela;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = parcela;
+    final botao = TextButton(
+      onPressed: p.pago
+          ? null
+          : () => alterarValorParcelaSheet(context, venda: venda, parcela: p),
+      child: const Text('Alterar valor'),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${p.numero}ª · ${formatarData(p.vencimento)}',
+                  style: AppTextStyles.body,
+                ),
+              ),
+              if (p.pago)
+                const StatusBadge.emDia()
+              else if (p.atrasada)
+                const StatusBadge.vencido(),
+              const SizedBox(width: AppSpacing.sm),
+              Text(formatarMoeda(p.valor), style: AppTextStyles.money),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  p.pago
+                      ? 'Parcela paga não pode ser alterada'
+                      : p.alteracoes.isEmpty
+                      ? ''
+                      : 'Valor alterado (era '
+                            '${formatarMoeda(p.alteracoes.first.valorAnterior)})',
+                  style: AppTextStyles.caption,
+                ),
+              ),
+              botao,
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
