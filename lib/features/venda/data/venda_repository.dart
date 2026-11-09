@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/firebase_providers.dart';
 import '../../estoque/data/movimento_estoque_model.dart';
+import '../../../core/domain/enums.dart';
 import '../domain/alteracao_parcela.dart';
 import '../domain/atualizacao_cliente.dart';
 import 'parcela_model.dart';
@@ -219,6 +220,22 @@ class VendaRepository {
       .orderBy('data', descending: true)
       .snapshots()
       .map((s) => s.docs.map((d) => VendaModel.fromMap(d.data())).toList());
+
+  /// Todas as vendas parceladas, atualizadas em tempo real (KAN-34).
+  ///
+  /// Filtra só por `tipo`, que usa o índice de campo único criado
+  /// automaticamente: a exclusão lógica (`deleted`) é aplicada em memória
+  /// para não exigir índice composto novo.
+  Stream<List<VendaModel>> observarParceladas() => _vendas
+      .where('tipo', isEqualTo: TipoVenda.parcelado.name)
+      .snapshots()
+      .map(
+        (s) => [
+          for (final d in s.docs)
+            if (!VendaModel.fromMap(d.data()).deleted)
+              VendaModel.fromMap(d.data()),
+        ],
+      );
 
   Stream<List<VendaModel>> observarPorPeriodo(DateTime de, DateTime ate) =>
       _vendas

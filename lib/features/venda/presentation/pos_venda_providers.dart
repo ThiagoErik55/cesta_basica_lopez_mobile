@@ -28,6 +28,11 @@ final parcelasDaVendaProvider = StreamProvider.autoDispose
           ref.watch(vendaRepositoryProvider).observarParcelas(vendaId),
     );
 
+/// Todas as vendas parceladas (KAN-34), de qualquer cliente.
+final vendasParceladasProvider = StreamProvider.autoDispose<List<VendaModel>>(
+  (ref) => ref.watch(vendaRepositoryProvider).observarParceladas(),
+);
+
 /// Vendas de um cliente, da mais recente para a mais antiga.
 final vendasDoClienteProvider = StreamProvider.autoDispose
     .family<List<VendaModel>, String>(
