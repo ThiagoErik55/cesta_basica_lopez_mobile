@@ -10,6 +10,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../venda/domain/historico_financeiro.dart';
 import '../../venda/domain/rotulos_venda.dart';
+import '../../venda/presentation/comprovante_providers.dart';
 import '../../venda/presentation/historico_financeiro_providers.dart';
 
 /// Histórico de compras do cliente (KAN-18): vendas reais, da mais
@@ -86,6 +87,12 @@ class HistoricoPagamentosSecao extends ConsumerWidget {
                 '${(item.pagamento.observacao?.isEmpty ?? true) ? '' : ' · ${item.pagamento.observacao}'}',
             valor: item.pagamento.valor,
             vendaId: item.vendaId,
+            // Comprovante do pagamento (KAN-36).
+            comprovante: ComprovanteArgs(
+              vendaId: item.vendaId,
+              parcelaId: item.parcelaId,
+              pagamentoId: item.pagamento.id,
+            ),
           ),
       ],
     );
@@ -159,12 +166,16 @@ class _ItemHistorico extends StatelessWidget {
     required this.detalhe,
     required this.valor,
     required this.vendaId,
+    this.comprovante,
   });
 
   final String titulo;
   final String detalhe;
   final double valor;
   final String vendaId;
+
+  /// Quando informado, mostra a ação que abre o comprovante.
+  final ComprovanteArgs? comprovante;
 
   @override
   Widget build(BuildContext context) {
@@ -186,6 +197,14 @@ class _ItemHistorico extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.md),
           Text(formatarMoeda(valor), style: AppTextStyles.money),
+          if (comprovante case final args?)
+            IconButton(
+              tooltip: 'Comprovante',
+              icon: const Icon(Icons.receipt_long_outlined),
+              onPressed: () =>
+                  Navigator.of(context)
+                      .pushNamed(AppRoutes.comprovante, arguments: args),
+            ),
           const Icon(Icons.chevron_right),
         ],
       ),

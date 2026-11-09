@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/domain/enums.dart';
+import '../../../core/navigation/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -12,6 +13,7 @@ import '../data/parcela_model.dart';
 import '../data/venda_model.dart';
 import '../domain/registro_pagamento.dart';
 import '../domain/rotulos_venda.dart';
+import 'comprovante_providers.dart';
 import 'pos_venda_providers.dart';
 
 /// Registro de pagamento, total ou parcial, de uma parcela pendente
@@ -72,7 +74,7 @@ class _RegistrarPagamentoSheetState
     final navegador = Navigator.of(context);
     final mensageiro = ScaffoldMessenger.of(context);
     try {
-      final sincronizado = await ref
+      final registrado = await ref
           .read(posVendaProvider.notifier)
           .registrarPagamentoDaParcela(
             venda: widget.venda,
@@ -87,10 +89,24 @@ class _RegistrarPagamentoSheetState
       mensageiro.showSnackBar(
         SnackBar(
           content: Text(
-            sincronizado
+            registrado.sincronizado
                 ? 'Pagamento registrado.'
                 : 'Pagamento salvo no aparelho. Será enviado quando houver '
                       'conexão.',
+          ),
+          // Tempo para dar para tocar na ação antes de a mensagem sumir.
+          duration: const Duration(seconds: 8),
+          // O comprovante é gerado no aparelho, então abre mesmo offline.
+          action: SnackBarAction(
+            label: 'Ver comprovante',
+            onPressed: () => navegador.pushNamed(
+              AppRoutes.comprovante,
+              arguments: ComprovanteArgs(
+                vendaId: widget.venda.id,
+                parcelaId: widget.parcelaId,
+                pagamentoId: registrado.pagamentoId,
+              ),
+            ),
           ),
         ),
       );

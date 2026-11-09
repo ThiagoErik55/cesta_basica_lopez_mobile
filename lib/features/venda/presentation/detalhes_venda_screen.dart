@@ -10,11 +10,13 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/navigation/app_routes.dart';
 import '../data/parcela_model.dart';
 import '../data/venda_model.dart';
 import '../domain/rotulos_venda.dart';
 import '../domain/troca.dart';
 import 'alterar_valor_parcela_sheet.dart';
+import 'comprovante_providers.dart';
 import 'observacao_dialog.dart';
 import 'pos_venda_providers.dart';
 import 'registrar_pagamento_sheet.dart';
@@ -236,8 +238,7 @@ class _LinhaParcela extends StatelessWidget {
     final p = parcela;
     if (p.pago) return 'Parcela paga não pode ser alterada';
     final partes = [
-      if (p.totalPago > 0)
-        'Pago ${formatarMoeda(p.totalPago)} · saldo ${formatarMoeda(p.saldo)}',
+      if (p.totalPago > 0 && !p.pago) 'Saldo ${formatarMoeda(p.saldo)}',
       if (p.alteracoes.isNotEmpty)
         'Valor alterado (era ${formatarMoeda(p.alteracoes.first.valorAnterior)})',
     ];
@@ -271,6 +272,34 @@ class _LinhaParcela extends StatelessWidget {
             ],
           ),
           if (aviso != null) Text(aviso, style: AppTextStyles.caption),
+          // Pagamentos registrados, cada um com o seu comprovante (KAN-36).
+          for (final g in p.pagamentos)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Pago ${formatarMoeda(g.valor)} · ${formatarData(g.data)} '
+                    '· ${g.forma.rotulo}',
+                    style: AppTextStyles.caption,
+                  ),
+                ),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: () => Navigator.of(context).pushNamed(
+                    AppRoutes.comprovante,
+                    arguments: ComprovanteArgs(
+                      vendaId: venda.id,
+                      parcelaId: p.id,
+                      pagamentoId: g.id,
+                    ),
+                  ),
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  label: const Text('Comprovante'),
+                ),
+              ],
+            ),
           Wrap(
             alignment: WrapAlignment.end,
             children: [

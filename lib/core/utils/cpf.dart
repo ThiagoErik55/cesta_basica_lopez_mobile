@@ -25,3 +25,12 @@ int _digitoVerificador(List<int> numeros, int quantidade) {
 }
 
 String apenasDigitos(String texto) => texto.replaceAll(RegExp(r'\D'), '');
+
+/// CPF com a parte do meio oculta, para documentos que saem do app
+/// (LGPD): só os 3 primeiros e os 2 últimos dígitos aparecem, como em
+/// `529.***.***-25`. CPF que não tem 11 dígitos é todo oculto.
+String mascararCpf(String cpf) {
+  final d = apenasDigitos(cpf);
+  if (d.length != 11) return '***.***.***-**';
+  return '${d.substring(0, 3)}.***.***-${d.substring(9)}';
+}

@@ -40,6 +40,20 @@ final vendasDoClienteProvider = StreamProvider.autoDispose
           ref.watch(vendaRepositoryProvider).observarPorCliente(clienteId),
     );
 
+/// Resultado de [PosVendaNotifier.registrarPagamentoDaParcela].
+class PagamentoRegistrado {
+  const PagamentoRegistrado({
+    required this.pagamentoId,
+    required this.sincronizado,
+  });
+
+  /// Id do pagamento criado, para abrir o comprovante (KAN-36).
+  final String pagamentoId;
+
+  /// `false` quando a gravação ficou na fila offline do Firestore.
+  final bool sincronizado;
+}
+
 final posVendaProvider =
     AsyncNotifierProvider.autoDispose<PosVendaNotifier, void>(
       PosVendaNotifier.new,
@@ -175,11 +189,11 @@ class PosVendaNotifier extends AsyncNotifier<void> {
 
   /// Registra um pagamento (total ou parcial) em uma parcela pendente
   /// (KAN-33). Recusas das regras do domínio viram [ArgumentError] com a
-  /// mensagem.
+  /// mensagem. Devolve o id do pagamento, para o comprovante (KAN-36).
   ///
   /// O próximo vencimento do cliente é o menor entre as parcelas
   /// pendentes de **todas** as vendas dele, e não só desta.
-  Future<bool> registrarPagamentoDaParcela({
+  Future<PagamentoRegistrado> registrarPagamentoDaParcela({
     required VendaModel venda,
     required List<ParcelaModel> parcelas,
     required String parcelaId,
@@ -207,7 +221,7 @@ class PosVendaNotifier extends AsyncNotifier<void> {
     ];
     final proximo = proximoVencimentoPendente(depois);
 
-    return _executar(
+    final sincronizado = await _executar(
       repositorio.registrarPagamentoParcela(
         vendaId: venda.id,
         parcelaId: parcelaId,
@@ -220,6 +234,10 @@ class PosVendaNotifier extends AsyncNotifier<void> {
           limparProximoVencimento: proximo == null,
         ),
       ),
+    );
+    return PagamentoRegistrado(
+      pagamentoId: resultado.pagamento!.id,
+      sincronizado: sincronizado,
     );
   }
 

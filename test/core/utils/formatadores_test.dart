@@ -23,4 +23,8 @@ void main() {
     expect(lerValorMonetario(''), isNull);
     expect(lerValorMonetario(','), isNull);
   });
+
+  test('formatarDataHora mostra data e hora', () {
+    expect(formatarDataHora(DateTime(2026, 11, 9, 14, 5)), '09/11/2026 14:05');
+  });
 }
