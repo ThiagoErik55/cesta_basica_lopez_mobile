@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/firebase_providers.dart';
-import '../../cliente/data/cliente_model.dart';
 import '../../estoque/data/movimento_estoque_model.dart';
 import '../domain/alteracao_parcela.dart';
 import '../domain/atualizacao_cliente.dart';
@@ -59,7 +58,9 @@ class VendaRepository {
       if (c.acrescimoEmAberto != 0)
         'valorEmAberto': FieldValue.increment(c.acrescimoEmAberto),
       if (c.proximoVencimento != null)
-        'proximoVencimento': c.proximoVencimento!.toIso8601String(),
+        'proximoVencimento': c.proximoVencimento!.toIso8601String()
+      else if (c.limparProximoVencimento)
+        'proximoVencimento': null,
       'updatedAt': agora,
     });
   }
@@ -139,15 +140,67 @@ class VendaRepository {
     });
   }
 
-  /// Quita ou registra pagamento parcial, atualizando o cliente.
-  Future<void> registrarPagamento({
-    required ParcelaModel parcela,
-    required ClienteModel clienteAtualizado,
+  /// Grava um pagamento de parcela (KAN-33) em um único batch: o
+  /// pagamento entra na parcela e o cliente tem o valor em aberto e o
+  /// próximo vencimento atualizados.
+  ///
+  /// Só os campos que mudam são escritos. O pagamento entra com
+  /// arrayUnion e o valor em aberto com FieldValue.increment, então dois
+  /// recebimentos offline não se sobrescrevem (ADR 001). Se [quitada], a
+  /// parcela também vira paga.
+  Future<void> registrarPagamentoParcela({
+    required String vendaId,
+    required String parcelaId,
+    required PagamentoModel pagamento,
+    required bool quitada,
+    required AtualizacaoClienteVenda cliente,
   }) async {
     final lote = _db.batch();
-    lote.set(_parcelas(parcela.vendaId).doc(parcela.id), parcela.toMap());
-    lote.set(_clientes.doc(clienteAtualizado.id), clienteAtualizado.toMap());
+    lote.update(_parcelas(vendaId).doc(parcelaId), {
+      'pagamentos': FieldValue.arrayUnion([pagamento.toMap()]),
+      if (quitada) ...{
+        'pago': true,
+        'dataPagamento': pagamento.data.toIso8601String(),
+      },
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+    _atualizarCliente(lote, cliente);
     await lote.commit();
+  }
+
+  /// Parcelas de todas as vendas parceladas do cliente, para recalcular
+  /// o próximo vencimento. Lê do servidor e, sem conexão (ou se demorar),
+  /// do cache local, que as telas de venda já mantêm atualizado.
+  Future<List<ParcelaModel>> parcelasDoCliente(String clienteId) async {
+    Future<List<ParcelaModel>> ler(Source fonte) async {
+      final vendas = await _vendas
+          .where('deleted', isEqualTo: false)
+          .where('clienteId', isEqualTo: clienteId)
+          .orderBy('data', descending: true)
+          .get(GetOptions(source: fonte));
+      final ids = [
+        for (final d in vendas.docs)
+          if (VendaModel.fromMap(d.data()).ehPromissoria) d.id,
+      ];
+      final listas = await Future.wait([
+        for (final id in ids)
+          _parcelas(id)
+              .where('deleted', isEqualTo: false)
+              .orderBy('numero')
+              .get(GetOptions(source: fonte)),
+      ]);
+      return [
+        for (final s in listas)
+          for (final d in s.docs) ParcelaModel.fromMap(d.data()),
+      ];
+    }
+
+    try {
+      return await ler(Source.serverAndCache)
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      return ler(Source.cache);
+    }
   }
 
   /// Venda por id, atualizada em tempo real. `null` se não existe ou foi
