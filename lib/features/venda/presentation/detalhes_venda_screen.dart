@@ -17,6 +17,7 @@ import '../domain/troca.dart';
 import 'alterar_valor_parcela_sheet.dart';
 import 'observacao_dialog.dart';
 import 'pos_venda_providers.dart';
+import 'registrar_pagamento_sheet.dart';
 import 'troca_sheet.dart';
 
 /// Detalhes de uma venda registrada: itens, pagamento, parcelas, trocas
@@ -231,15 +232,22 @@ class _LinhaParcela extends StatelessWidget {
   final VendaModel venda;
   final ParcelaModel parcela;
 
+  String? get _aviso {
+    final p = parcela;
+    if (p.pago) return 'Parcela paga não pode ser alterada';
+    final partes = [
+      if (p.totalPago > 0)
+        'Pago ${formatarMoeda(p.totalPago)} · saldo ${formatarMoeda(p.saldo)}',
+      if (p.alteracoes.isNotEmpty)
+        'Valor alterado (era ${formatarMoeda(p.alteracoes.first.valorAnterior)})',
+    ];
+    return partes.isEmpty ? null : partes.join('\n');
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = parcela;
-    final botao = TextButton(
-      onPressed: p.pago
-          ? null
-          : () => alterarValorParcelaSheet(context, venda: venda, parcela: p),
-      child: const Text('Alterar valor'),
-    );
+    final aviso = _aviso;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
@@ -262,20 +270,30 @@ class _LinhaParcela extends StatelessWidget {
               Text(formatarMoeda(p.valor), style: AppTextStyles.money),
             ],
           ),
-          Row(
+          if (aviso != null) Text(aviso, style: AppTextStyles.caption),
+          Wrap(
+            alignment: WrapAlignment.end,
             children: [
-              Expanded(
-                child: Text(
-                  p.pago
-                      ? 'Parcela paga não pode ser alterada'
-                      : p.alteracoes.isEmpty
-                      ? ''
-                      : 'Valor alterado (era '
-                            '${formatarMoeda(p.alteracoes.first.valorAnterior)})',
-                  style: AppTextStyles.caption,
-                ),
+              TextButton(
+                onPressed: p.pago
+                    ? null
+                    : () => registrarPagamentoSheet(
+                        context,
+                        venda: venda,
+                        parcela: p,
+                      ),
+                child: const Text('Registrar pagamento'),
               ),
-              botao,
+              TextButton(
+                onPressed: p.pago
+                    ? null
+                    : () => alterarValorParcelaSheet(
+                        context,
+                        venda: venda,
+                        parcela: p,
+                      ),
+                child: const Text('Alterar valor'),
+              ),
             ],
           ),
         ],

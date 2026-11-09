@@ -11,6 +11,8 @@ import '../data/parcela_model.dart';
 import '../data/venda_model.dart';
 import '../data/venda_repository.dart';
 import '../domain/alteracao_parcela.dart';
+import '../domain/atualizacao_cliente.dart';
+import '../domain/registro_pagamento.dart';
 import '../domain/troca.dart';
 
 /// Venda por id, em tempo real (tela de detalhes da venda).
@@ -163,6 +165,56 @@ class PosVendaNotifier extends AsyncNotifier<void> {
             alteracoes: resultado.alteradas,
             diferencaTotal: resultado.diferencaTotal,
           ),
+    );
+  }
+
+  /// Registra um pagamento (total ou parcial) em uma parcela pendente
+  /// (KAN-33). Recusas das regras do domínio viram [ArgumentError] com a
+  /// mensagem.
+  ///
+  /// O próximo vencimento do cliente é o menor entre as parcelas
+  /// pendentes de **todas** as vendas dele, e não só desta.
+  Future<bool> registrarPagamentoDaParcela({
+    required VendaModel venda,
+    required List<ParcelaModel> parcelas,
+    required String parcelaId,
+    required double valor,
+    required FormaPagamento forma,
+    required DateTime data,
+    String? observacao,
+  }) async {
+    final resultado = registrarPagamentoParcela(
+      parcelasDaVenda: parcelas,
+      parcelaId: parcelaId,
+      valor: valor,
+      forma: forma,
+      data: data,
+      observacao: observacao,
+    );
+    if (!resultado.ok) throw ArgumentError(resultado.erro);
+
+    final repositorio = ref.read(vendaRepositoryProvider);
+    final doCliente = await repositorio.parcelasDoCliente(venda.clienteId);
+    final depois = [
+      ...doCliente.where((p) => p.vendaId != venda.id),
+      for (final p in parcelas)
+        p.id == parcelaId ? resultado.parcelaAtualizada! : p,
+    ];
+    final proximo = proximoVencimentoPendente(depois);
+
+    return _executar(
+      repositorio.registrarPagamentoParcela(
+        vendaId: venda.id,
+        parcelaId: parcelaId,
+        pagamento: resultado.pagamento!,
+        quitada: resultado.parcelaQuitada,
+        cliente: AtualizacaoClienteVenda(
+          clienteId: venda.clienteId,
+          acrescimoEmAberto: -resultado.pagamento!.valor,
+          proximoVencimento: proximo,
+          limparProximoVencimento: proximo == null,
+        ),
+      ),
     );
   }
 

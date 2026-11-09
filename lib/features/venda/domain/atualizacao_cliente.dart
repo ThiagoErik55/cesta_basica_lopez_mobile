@@ -12,6 +12,7 @@ class AtualizacaoClienteVenda {
     this.ultimaCompra,
     this.acrescimoEmAberto = 0,
     this.proximoVencimento,
+    this.limparProximoVencimento = false,
   });
 
   final String clienteId;
@@ -24,9 +25,13 @@ class AtualizacaoClienteVenda {
   /// alterada (pode ser negativa).
   final double acrescimoEmAberto;
 
-  /// Menor vencimento pendente do cliente depois da venda; `null` em
-  /// venda à vista (o campo não é tocado).
+  /// Menor vencimento pendente do cliente depois da operação; `null` não
+  /// toca no campo (ex. venda à vista).
   final DateTime? proximoVencimento;
+
+  /// Grava `null` em `proximoVencimento`: o cliente ficou sem parcelas
+  /// pendentes. Só vale quando [proximoVencimento] é `null`.
+  final bool limparProximoVencimento;
 }
 
 /// Monta a atualização do cliente para uma venda feita em [agora].
