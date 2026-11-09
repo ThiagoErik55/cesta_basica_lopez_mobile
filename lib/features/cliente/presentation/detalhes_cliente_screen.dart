@@ -13,7 +13,6 @@ import '../../../core/widgets/status_badge.dart';
 import '../data/cliente_model.dart';
 import '../domain/status_pagamento.dart';
 import 'cliente_providers.dart';
-import '../../venda/presentation/vendas_cliente_secao.dart';
 import 'credito_cliente_form.dart';
 import 'historico_cliente_secoes.dart';
 
@@ -21,7 +20,7 @@ import 'historico_cliente_secoes.dart';
 /// situação financeira (somente leitura). Os dados cadastrais são
 /// editados pelo botão da AppBar; score, limite e bloqueio, na seção
 /// Crédito (KAN-20). Os históricos de compras e pagamentos (KAN-18,
-/// KAN-19) usam dados fictícios até as Sprints 4 e 5.
+/// KAN-19) vêm das vendas e parcelas reais (KAN-33).
 ///
 /// Recebe o id do cliente como argumento da rota.
 class DetalhesClienteScreen extends ConsumerWidget {
@@ -129,10 +128,6 @@ class _Detalhes extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
 
-        // Vendas reais (Sprint 4). O histórico fictício abaixo continua
-        // até o KAN-18 trocar a fonte de dados.
-        VendasClienteSecao(clienteId: cliente.id),
-        const SizedBox(height: AppSpacing.lg),
         HistoricoComprasSecao(clienteId: cliente.id),
         const SizedBox(height: AppSpacing.lg),
         HistoricoPagamentosSecao(clienteId: cliente.id),
