@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:ui';
 
 import 'package:cesta_basica_lopez_mobile/core/domain/enums.dart';
 import 'package:cesta_basica_lopez_mobile/features/venda/data/venda_model.dart';
