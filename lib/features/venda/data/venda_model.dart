@@ -96,6 +96,9 @@ class VendaModel implements EntidadeBase {
   final FormaPagamento? formaPagamento;
   final TipoVenda tipo;
   final String? assinaturaBase64;
+
+  /// Quando o cliente assinou (KAN-38); `null` se não assinou.
+  final DateTime? assinadaEm;
   final String? observacao;
   @override
   final DateTime updatedAt;
@@ -115,6 +118,7 @@ class VendaModel implements EntidadeBase {
     this.formaPagamento,
     required this.tipo,
     this.assinaturaBase64,
+    this.assinadaEm,
     this.observacao,
     required this.updatedAt,
     this.deleted = false,
@@ -140,6 +144,7 @@ class VendaModel implements EntidadeBase {
     'formaPagamento': formaPagamento?.name,
     'tipo': tipo.name,
     'assinaturaBase64': assinaturaBase64,
+    'assinadaEm': assinadaEm?.toIso8601String(),
     'observacao': observacao,
     'updatedAt': updatedAt.toIso8601String(),
     'deleted': deleted,
@@ -168,6 +173,7 @@ class VendaModel implements EntidadeBase {
           ),
     tipo: lerEnum(TipoVenda.values, map['tipo'], TipoVenda.aVista),
     assinaturaBase64: map['assinaturaBase64'] as String?,
+    assinadaEm: lerDataOpcional(map['assinadaEm']),
     observacao: map['observacao'] as String?,
     updatedAt: lerData(map['updatedAt']),
     deleted: map['deleted'] as bool? ?? false,
