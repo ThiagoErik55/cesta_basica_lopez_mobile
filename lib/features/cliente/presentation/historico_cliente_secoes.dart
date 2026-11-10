@@ -51,6 +51,8 @@ class HistoricoComprasSecao extends ConsumerWidget {
                 '${compra.venda.trocas.isEmpty ? '' : ' · com troca'}',
             valor: compra.venda.valorTotal,
             vendaId: compra.venda.id,
+            // Nota provisória da compra (KAN-37).
+            comNota: true,
           ),
       ],
     );
@@ -167,6 +169,7 @@ class _ItemHistorico extends StatelessWidget {
     required this.valor,
     required this.vendaId,
     this.comprovante,
+    this.comNota = false,
   });
 
   final String titulo;
@@ -176,6 +179,9 @@ class _ItemHistorico extends StatelessWidget {
 
   /// Quando informado, mostra a ação que abre o comprovante.
   final ComprovanteArgs? comprovante;
+
+  /// Mostra a ação que abre a nota provisória da venda.
+  final bool comNota;
 
   @override
   Widget build(BuildContext context) {
@@ -204,6 +210,14 @@ class _ItemHistorico extends StatelessWidget {
               onPressed: () =>
                   Navigator.of(context)
                       .pushNamed(AppRoutes.comprovante, arguments: args),
+            ),
+          if (comNota)
+            IconButton(
+              tooltip: 'Nota provisória',
+              icon: const Icon(Icons.description_outlined),
+              onPressed: () =>
+                  Navigator.of(context)
+                      .pushNamed(AppRoutes.notaProvisoria, arguments: vendaId),
             ),
           const Icon(Icons.chevron_right),
         ],
