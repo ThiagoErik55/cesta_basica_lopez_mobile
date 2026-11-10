@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:cesta_basica_lopez_mobile/core/domain/enums.dart';
 import 'package:cesta_basica_lopez_mobile/features/cliente/data/cliente_model.dart';
@@ -24,7 +25,7 @@ final _cliente = ClienteModel(
   updatedAt: _agora,
 );
 
-VendaModel _venda({List<ItemVenda>? itens}) => VendaModel(
+VendaModel _venda({List<ItemVenda>? itens, String? assinatura}) => VendaModel(
   id: 'v1',
   clienteId: 'c1',
   clienteNome: 'Maria',
@@ -46,6 +47,7 @@ VendaModel _venda({List<ItemVenda>? itens}) => VendaModel(
   valorTotal: 10,
   formaPagamento: FormaPagamento.pix,
   tipo: TipoVenda.aVista,
+  assinaturaBase64: assinatura,
   updatedAt: _agora,
 );
 
@@ -146,5 +148,52 @@ void main() {
       ),
     );
     expect((erro! as NotaIndisponivel).mensagem, 'Venda sem itens.');
+  });
+
+  group('assinatura', () {
+    // PNG 1x1 válido.
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA'
+      '60e6kgAAAABJRU5ErkJggg==',
+    );
+
+    test('válida: os bytes vão para a nota', () async {
+      final c = _container(
+        venda: _venda(assinatura: base64Encode(png)),
+        cliente: _cliente,
+      );
+      final gerado = await _gerar(c);
+      expect(gerado.nota.assinatura, png);
+      expect(ascii.decode(gerado.bytes.sublist(0, 4)), '%PDF');
+    });
+
+    test('sem assinatura: nula', () async {
+      final c = _container(venda: _venda(), cliente: _cliente);
+      expect((await _gerar(c)).nota.assinatura, isNull);
+    });
+
+    test('base64 corrompido: nula e a nota sai', () async {
+      final c = _container(
+        venda: _venda(assinatura: '%%%corrompido%%%'),
+        cliente: _cliente,
+      );
+      final gerado = await _gerar(c);
+      expect(gerado.nota.assinatura, isNull);
+      expect(ascii.decode(gerado.bytes.sublist(0, 4)), '%PDF');
+    });
+
+    test(
+      'PNG com cabeçalho mas conteúdo quebrado: nula e a nota sai',
+      () async {
+        final quebrado = Uint8List.fromList([...png.sublist(0, 16), 1, 2, 3]);
+        final c = _container(
+          venda: _venda(assinatura: base64Encode(quebrado)),
+          cliente: _cliente,
+        );
+        final gerado = await _gerar(c);
+        expect(gerado.nota.assinatura, isNull);
+        expect(ascii.decode(gerado.bytes.sublist(0, 4)), '%PDF');
+      },
+    );
   });
 }

@@ -7,6 +7,7 @@ import '../../cliente/presentation/cliente_providers.dart';
 import '../../produto/data/produto_repository.dart';
 import '../data/nota_provisoria_pdf.dart';
 import '../data/parcela_model.dart';
+import '../domain/assinatura.dart';
 import '../domain/nota_provisoria.dart';
 import 'pos_venda_providers.dart';
 
@@ -87,24 +88,46 @@ final notaProvisoriaProvider = FutureProvider.autoDispose
         {for (final i in venda.itens) i.produtoId},
       );
 
-      final resultado = montarNotaProvisoria(
-        cliente: cliente,
-        venda: venda,
-        itens: venda.itens,
-        parcelas: parcelas,
-        codigos: codigos,
-      );
-      final nota = resultado.nota;
-      if (nota == null) {
-        throw NotaIndisponivel(resultado.erro ?? 'Nota indisponível.');
+      // Assinatura gravada (KAN-38). Base64 inválido vira `null`: a nota
+      // sai com a linha em branco.
+      final assinatura = decodificarAssinatura(venda.assinaturaBase64);
+
+      NotaProvisoria montar(Uint8List? imagem) {
+        final resultado = montarNotaProvisoria(
+          cliente: cliente,
+          venda: venda,
+          itens: venda.itens,
+          parcelas: parcelas,
+          codigos: codigos,
+          assinatura: imagem,
+        );
+        final nota = resultado.nota;
+        if (nota == null) {
+          throw NotaIndisponivel(resultado.erro ?? 'Nota indisponível.');
+        }
+        return nota;
       }
 
       try {
+        var nota = montar(assinatura);
+        Uint8List bytes;
+        try {
+          bytes = await gerarPdfNotaProvisoria(nota);
+        } catch (_) {
+          // Imagem com cabeçalho de PNG mas conteúdo quebrado: o PDF não
+          // gera. Tenta sem a assinatura (sem logar o conteúdo, LGPD).
+          if (assinatura == null) rethrow;
+          debugPrint('Assinatura ilegível; gerando a nota sem ela.');
+          nota = montar(null);
+          bytes = await gerarPdfNotaProvisoria(nota);
+        }
         return NotaGerada(
           nota: nota,
-          bytes: await gerarPdfNotaProvisoria(nota),
+          bytes: bytes,
           nomeArquivo: nomeArquivoNota(nota),
         );
+      } on NotaIndisponivel {
+        rethrow;
       } catch (e, st) {
         debugPrint('Erro ao gerar o PDF da nota provisória: $e\n$st');
         throw const NotaIndisponivel(
