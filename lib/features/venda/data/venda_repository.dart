@@ -263,14 +263,27 @@ class VendaRepository {
           .snapshots()
           .map((s) => s.docs.map((d) => VendaModel.fromMap(d.data())).toList());
 
+  /// Parcelas da venda, em tempo real e na ordem do número.
+  ///
+  /// Lê a subcoleção inteira (poucas parcelas por venda) e aplica a
+  /// exclusão lógica e a ordenação em memória: `where('deleted')` com
+  /// `orderBy('numero')` exigiria um índice composto, e sem ele a consulta
+  /// falha e a tela ficava no spinner.
   Stream<List<ParcelaModel>> observarParcelas(String vendaId) =>
-      _parcelas(vendaId)
-          .where('deleted', isEqualTo: false)
-          .orderBy('numero')
-          .snapshots()
-          .map(
-            (s) => s.docs.map((d) => ParcelaModel.fromMap(d.data())).toList(),
-          );
+      _parcelas(vendaId).snapshots().map(_parcelasAtivas);
+
+  /// Parcelas da venda só do cache local, para quando o servidor não
+  /// responde a tempo.
+  Future<List<ParcelaModel>> parcelasEmCache(String vendaId) async =>
+      _parcelasAtivas(
+        await _parcelas(vendaId).get(const GetOptions(source: Source.cache)),
+      );
+
+  List<ParcelaModel> _parcelasAtivas(QuerySnapshot<Map<String, dynamic>> s) => [
+    for (final d in s.docs)
+      if (!ParcelaModel.fromMap(d.data()).deleted)
+        ParcelaModel.fromMap(d.data()),
+  ]..sort((a, b) => a.numero.compareTo(b.numero));
 
   /// Grava cada movimento e ajusta o cache `estoqueAtual` do produto.
   ///
