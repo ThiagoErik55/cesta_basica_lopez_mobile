@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatadores.dart';
+import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/connection_badge.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/primary_button.dart';
@@ -12,6 +13,7 @@ import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../core/navigation/app_routes.dart';
 import '../data/parcela_model.dart';
+import '../domain/assinatura.dart';
 import '../data/venda_model.dart';
 import '../domain/rotulos_venda.dart';
 import '../domain/troca.dart';
@@ -146,6 +148,9 @@ class _Detalhes extends StatelessWidget {
             ),
           ),
         ],
+
+        const SizedBox(height: AppSpacing.lg),
+        _AssinaturaSecao(venda: venda),
 
         const SizedBox(height: AppSpacing.lg),
         SectionHeader(
@@ -373,6 +378,98 @@ class _Linha extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Assinatura do cliente (RF19, KAN-38): a imagem gravada, com a opção de
+/// refazer, ou o botão para coletar. A assinatura é opcional.
+class _AssinaturaSecao extends StatelessWidget {
+  const _AssinaturaSecao({required this.venda});
+
+  final VendaModel venda;
+
+  Future<void> _coletar(BuildContext context, {required bool refazer}) async {
+    if (refazer) {
+      final ok = await confirmar(
+        context,
+        titulo: 'Refazer assinatura',
+        mensagem: 'A assinatura atual será substituída pela nova.',
+        textoConfirmar: 'Refazer',
+      );
+      if (!ok || !context.mounted) return;
+    }
+    await Navigator.of(context)
+        .pushNamed(AppRoutes.assinatura, arguments: venda.id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imagem = decodificarAssinatura(venda.assinaturaBase64);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionHeader(titulo: 'Assinatura do cliente'),
+        const SizedBox(height: AppSpacing.sm),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: imagem == null
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Ainda não assinada.',
+                        style: AppTextStyles.body,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      SecondaryButton(
+                        texto: 'Coletar assinatura',
+                        onPressed: () => _coletar(context, refazer: false),
+                      ),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        height: 120,
+                        padding: const EdgeInsets.all(AppSpacing.sm),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: AppColors.border),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Image.memory(
+                          imagem,
+                          fit: BoxFit.contain,
+                          gaplessPlayback: true,
+                          errorBuilder: (_, _, _) => const Center(
+                            child: Text(
+                              'Não foi possível exibir a assinatura.',
+                              style: AppTextStyles.caption,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (venda.assinadaEm != null) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Assinada em ${formatarDataHora(venda.assinadaEm!)}',
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.sm),
+                      SecondaryButton(
+                        texto: 'Refazer assinatura',
+                        onPressed: () => _coletar(context, refazer: true),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }
