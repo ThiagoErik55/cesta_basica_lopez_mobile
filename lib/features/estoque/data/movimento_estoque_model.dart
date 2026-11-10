@@ -11,7 +11,8 @@ class MovimentoEstoqueModel implements EntidadeBase {
   final int quantidade;
   final DateTime data;
   final String vendedorUid;
-  final double? custoUnitario; // preenchido nas entradas
+  final double?
+  custoUnitario; // custo de aquisição (entrada) ou do item (saída em venda)
   @override
   final DateTime updatedAt;
   @override

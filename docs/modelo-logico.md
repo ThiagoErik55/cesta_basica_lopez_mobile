@@ -2,7 +2,7 @@
 
 **Projeto:** Sistema de Força de Vendas — Cesta Básica Lopez
 **Projeto Integrador III — Faculdade Donaduzzi — Grupo 01**
-**Versão:** 1.2 · Sprint 2
+**Versão:** 1.5 · Sprint 5
 **Referência:** Levantamento de Requisitos v01, ADR 001, ADR 002
 
 ---
@@ -85,6 +85,7 @@ erDiagram
     string formaPagamento
     string tipo
     text assinaturaBase64
+    datetime assinadaEm
     text observacao
   }
   ITEM_VENDA {
@@ -204,6 +205,7 @@ erDiagram
     string formaPagamento
     string tipo
     text assinaturaBase64
+    datetime assinadaEm
     text observacao
   }
   ITEM_VENDA {
@@ -373,7 +375,8 @@ Pedido registrado no atendimento (RF10, RF12, RF18, RF19, RF26). Quando `tipo = 
 | valorTotal | decimal | Soma dos itens |
 | formaPagamento | enum | Opcional. `pix`, `credito`, `debito`, `valeAlimentacao` ou `dinheiro`. Preenchido apenas em venda à vista |
 | tipo | enum | `aVista` ou `parcelado` |
-| assinaturaBase64 | text | Assinatura digital do cliente (RF19) |
+| assinaturaBase64 | text | Assinatura digital do cliente (RF19): PNG com fundo branco, até 600 px de largura, em base64. Opcional; não bloqueia a venda |
+| assinadaEm | datetime | Opcional. Data e hora da assinatura (KAN-38); refazer a assinatura atualiza o campo |
 | observacao | text | Registro pós-venda, ex. troca realizada (RF26) |
 
 ### ITEM_VENDA
@@ -415,6 +418,7 @@ Plano de pagamento de uma venda parcelada (RF13, RF14, RF15).
 | vencimento | date | Data prevista de recebimento (RF09) |
 | pago | bool | Quitada |
 | dataPagamento | date | Data efetiva da quitação |
+| alteracoes | lista | Histórico das alterações de `valor` (RF15): `valorAnterior`, `valorNovo`, `data` e `motivo` opcional. Estrutura embutida, vazia enquanto o valor original não mudou |
 
 ### PAGAMENTO
 Registro de recebimento, permitindo pagamento parcial (RF16).
@@ -425,7 +429,10 @@ Registro de recebimento, permitindo pagamento parcial (RF16).
 | parcelaId | uuid | FK para PARCELA |
 | valor | decimal | Valor recebido |
 | data | datetime | Momento do recebimento |
-| forma | enum | Meio utilizado |
+| forma | enum | Meio utilizado: `pix`, `credito`, `debito`, `valeAlimentacao` ou `dinheiro` |
+| observacao | string | Opcional. Anotação do vendedor sobre o recebimento |
+
+Estrutura embutida na PARCELA. O vínculo com a venda e com o cliente é dado pelo documento que a contém (`PARCELA.vendaId` e `VENDA.clienteId`). Quitação da venda não é armazenada: deriva de todas as parcelas com `pago = true` (seção 4).
 
 ### MOVIMENTO_ESTOQUE
 Entrada, saída ou troca de produto (RF22, RF23, RF25).
@@ -462,7 +469,7 @@ dos atributos listados:
 | updatedAt | datetime | Última alteração, usada na resolução de conflitos |
 | deleted | bool | Exclusão lógica — exclusão física quebra a sincronização offline |
 
-As estruturas embutidas — ITEM_VENDA, TROCA_ITEM e PAGAMENTO — não possuem
+As estruturas embutidas — ITEM_VENDA, TROCA_ITEM, PAGAMENTO e as alterações de valor da PARCELA — não possuem
 esses atributos: não constituem documentos independentes e acompanham o
 ciclo de vida e a sincronização do documento que as contém.
 
@@ -512,6 +519,7 @@ O banco adotado é o Cloud Firestore, orientado a documentos. O modelo lógico a
 | VENDA 1:N TROCA_ITEM | Array `trocas` embutido no documento da venda | Poucos registros por venda, sempre lidos junto com ela |
 | VENDA 1:N PARCELA | Subcoleção `vendas/{id}/parcelas` | Possuem ciclo de vida próprio e são consultadas por vencimento |
 | PARCELA 1:N PAGAMENTO | Array `pagamentos` embutido na parcela | Poucos registros por parcela, sempre lidos em conjunto |
+| PARCELA 1:N alteração de valor | Array `alteracoes` embutido na parcela | Poucos registros por parcela, sempre lidos em conjunto; gravado com `arrayUnion` para não perder alterações feitas offline |
 | CLIENTE 1:N VENDA | Campo `clienteId` mais `clienteNome` duplicado | Desnormalização evita busca do cliente ao listar vendas |
 | ROTA 1:N CLIENTE | Campo `rotaId` no documento do cliente | Referência simples por identificador |
 | ROTA 1:N VISITA | Campo `rotaId` no documento da visita | Referência simples por identificador |
@@ -562,7 +570,8 @@ As seguintes operações alteram mais de um documento e devem ser executadas em 
 | Operação | Documentos afetados |
 |---|---|
 | Registrar venda parcelada | `vendas/{id}`, `vendas/{id}/parcelas/*`, `clientes/{id}`, `movimentosEstoque/*` |
-| Quitar parcela | `vendas/{id}/parcelas/{id}`, `clientes/{id}` |
+| Registrar pagamento de parcela | `vendas/{id}/parcelas/{id}` (pagamento embutido), `clientes/{id}` (`valorEmAberto` e `proximoVencimento`) |
+| Alterar valor de parcela | `vendas/{id}/parcelas/*`, `vendas/{id}` (se o total mudar), `clientes/{id}` (se o valor em aberto mudar) |
 | Registrar troca | `vendas/{id}`, `movimentosEstoque/*` |
 | Registrar entrada de estoque | `produtos/{id}`, `movimentosEstoque/*` |
 
@@ -607,3 +616,6 @@ As entidades CLIENTE e VENDA armazenam dados pessoais (CPF, endereço, telefone 
 | 10/09/2026 | 1.0 | Versão inicial do modelo lógico, elaborada na Sprint 2 a partir do Levantamento de Requisitos v01 e do ADR 001. |
 | 16/09/2026 | 1.1 | Aplicação do ADR 002: identificação por CPF confirmada; PROMISSORIA convertida em visão derivada; inclusão de `custoAtual`, `custoUnitario` e apuração de lucro real; entidade TROCA_ITEM criada; atributo `id` acrescentado a ITEM_VENDA; `fiado` removido das formas de pagamento e `formaPagamento` tornada opcional; `proximoVencimento` e `valorEmAberto` acrescentados a CLIENTE; `numeroNota` acrescentado a VENDA; documento `configuracoes/geral` previsto. |
 | 16/09/2026 | 1.2 | Ajustes de documentação decorrentes da implementação: escopo dos atributos comuns restrito às entidades com coleção própria; registro das desnormalizações de `ITEM_VENDA.nome`, `TROCA_ITEM.produtoNovoNome`, `VISITA.clienteNome` e `MOVIMENTO_ESTOQUE.vendedorUid`; nota sobre ausência de chave estrangeira em estruturas embutidas. |
+| 09/11/2026 | 1.3 | Alteração do valor de parcela (KAN-32): atributo `alteracoes` acrescentado a PARCELA como estrutura embutida; operação "Alterar valor de parcela" incluída entre as escritas em lote. |
+| 09/11/2026 | 1.4 | Registro de pagamento e histórico financeiro (KAN-33): atributo `observacao` acrescentado a PAGAMENTO; esclarecido o vínculo do pagamento com venda e cliente por meio dos documentos que o contêm; operação "Quitar parcela" renomeada para "Registrar pagamento de parcela", que também cobre pagamento parcial. |
+| 10/11/2026 | 1.5 | Assinatura digital (KAN-38): atributo `assinadaEm` acrescentado a VENDA; `assinaturaBase64` passa a ter formato definido (PNG, até 600 px) e a ser sobrescrita ao refazer. |

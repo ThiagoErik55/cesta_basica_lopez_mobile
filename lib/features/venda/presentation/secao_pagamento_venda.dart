@@ -23,7 +23,9 @@ class SecaoPagamentoVenda extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(novaVendaProvider.notifier);
-    final permiteParcelado = venda.pendencia?.permiteParcelado ?? true;
+    final pendencia = venda.pendencia;
+    final permiteParcelado = pendencia?.permiteParcelado ?? true;
+    final permiteAVista = pendencia?.permiteAVista ?? true;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -39,26 +41,25 @@ class SecaoPagamentoVenda extends ConsumerWidget {
                 rotulo: forma.rotulo,
                 icone: _iconeForma(forma),
                 selecionado: venda.pagamento == PagamentoAVista(forma),
-                onTap: () => notifier.selecionarPagamento(PagamentoAVista(forma)),
+                onTap: permiteAVista
+                    ? () => notifier.selecionarPagamento(PagamentoAVista(forma))
+                    : null,
               ),
             _OpcaoPagamentoChip(
               rotulo: 'Parcelado',
               icone: Icons.receipt_long_outlined,
               selecionado: venda.parcelado,
               onTap: permiteParcelado
-                  ? () => notifier.selecionarPagamento(
-                      const PagamentoParcelado(),
-                    )
+                  ? () =>
+                        notifier.selecionarPagamento(const PagamentoParcelado())
                   : null,
             ),
           ],
         ),
-        if (!permiteParcelado) ...[
+        // Motivo do bloqueio (KAN-35): manual, atraso ou limite.
+        if (pendencia != null && (!permiteParcelado || !permiteAVista)) ...[
           const SizedBox(height: AppSpacing.xs),
-          const Text(
-            'Parcelado indisponível para cliente bloqueado.',
-            style: AppTextStyles.caption,
-          ),
+          Text(pendencia.mensagens.first, style: AppTextStyles.caption),
         ],
         if (venda.parcelado) ...[
           const SizedBox(height: AppSpacing.md),
@@ -165,7 +166,7 @@ class _ConfiguracaoParcelas extends ConsumerWidget {
                   value: venda.numeroParcelas,
                   underline: const SizedBox.shrink(),
                   items: [
-                    for (var n = 1; n <= maximo; n++)
+                    for (var n = minimoParcelas; n <= maximo; n++)
                       DropdownMenuItem(value: n, child: Text('${n}x')),
                   ],
                   onChanged: (n) {
@@ -190,9 +191,7 @@ class _ConfiguracaoParcelas extends ConsumerWidget {
               const Divider(color: AppColors.border),
               for (final p in previa)
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.xs,
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                   child: Row(
                     children: [
                       Expanded(

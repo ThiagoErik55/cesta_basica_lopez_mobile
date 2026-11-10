@@ -7,13 +7,15 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatadores.dart';
 import '../../../core/widgets/connection_badge.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/score_badge.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/providers/regra_bloqueio_provider.dart';
+import '../../venda/presentation/promissorias_providers.dart';
 import '../data/cliente_model.dart';
-import '../domain/status_pagamento.dart';
+import '../domain/bloqueio_cliente.dart';
 import 'cliente_providers.dart';
-import '../../venda/presentation/vendas_cliente_secao.dart';
 import 'credito_cliente_form.dart';
 import 'historico_cliente_secoes.dart';
 
@@ -21,7 +23,7 @@ import 'historico_cliente_secoes.dart';
 /// situação financeira (somente leitura). Os dados cadastrais são
 /// editados pelo botão da AppBar; score, limite e bloqueio, na seção
 /// Crédito (KAN-20). Os históricos de compras e pagamentos (KAN-18,
-/// KAN-19) usam dados fictícios até as Sprints 4 e 5.
+/// KAN-19) vêm das vendas e parcelas reais (KAN-33).
 ///
 /// Recebe o id do cliente como argumento da rota.
 class DetalhesClienteScreen extends ConsumerWidget {
@@ -78,13 +80,42 @@ class DetalhesClienteScreen extends ConsumerWidget {
   }
 }
 
-class _Detalhes extends StatelessWidget {
+class _Detalhes extends ConsumerWidget {
   const _Detalhes({required this.cliente});
 
   final ClienteModel cliente;
 
+  /// Situação com o bloqueio automático (KAN-35). Usa as parcelas
+  /// pendentes de todas as vendas do cliente, que são a fonte
+  /// autoritativa; até carregarem, vale o resumo do próprio cliente.
+  SituacaoCliente _situacao(WidgetRef ref) {
+    final regra = ref.watch(regraBloqueioProvider);
+    final itens = ref.watch(promissoriasProvider(cliente.id)).value;
+    if (itens == null) {
+      return situacaoDoClientePeloResumo(cliente, regra: regra);
+    }
+    final agora = DateTime.now();
+    return situacaoDoCliente(
+      cliente,
+      avaliarBloqueio(
+        cliente: cliente,
+        parcelasPendentes: [
+          for (final i in itens)
+            for (final p in i.promissoria.parcelas)
+              if (!p.pago) p,
+        ],
+        agora: agora,
+        regra: regra,
+      ),
+      agora: agora,
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final situacao = _situacao(ref);
+    final saldoVencido = situacao.bloqueio?.saldoVencido ?? 0;
+
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.md),
       children: [
@@ -96,9 +127,18 @@ class _Detalhes extends StatelessWidget {
           children: [
             ScoreBadge(cliente.score),
             const SizedBox(width: AppSpacing.sm),
-            StatusBadge.pagamento(statusPagamento(cliente)),
+            StatusBadge.pagamento(situacao.status),
           ],
         ),
+        if (situacao.motivo != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            // Ex.: "Atraso de 23 dias · R$ 120,00 vencido".
+            '${situacao.motivo}'
+            '${situacao.bloqueio?.motivo == MotivoBloqueio.atrasoAcimaDoLimite && saldoVencido > 0 ? ' · ${formatarMoeda(saldoVencido)} vencido' : ''}',
+            style: AppTextStyles.caption,
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
 
         const SectionHeader(titulo: 'Dados cadastrais'),
@@ -129,10 +169,14 @@ class _Detalhes extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
 
-        // Vendas reais (Sprint 4). O histórico fictício abaixo continua
-        // até o KAN-18 trocar a fonte de dados.
-        VendasClienteSecao(clienteId: cliente.id),
+        SecondaryButton(
+          texto: 'Ver promissórias',
+          onPressed: () =>
+              Navigator.of(context)
+                  .pushNamed(AppRoutes.promissorias, arguments: cliente.id),
+        ),
         const SizedBox(height: AppSpacing.lg),
+
         HistoricoComprasSecao(clienteId: cliente.id),
         const SizedBox(height: AppSpacing.lg),
         HistoricoPagamentosSecao(clienteId: cliente.id),

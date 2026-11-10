@@ -12,8 +12,13 @@ import 'features/cliente/presentation/cadastro_cliente_screen.dart';
 import 'features/cliente/presentation/detalhes_cliente_screen.dart';
 import 'features/produto/data/produto_model.dart';
 import 'features/produto/presentation/cadastro_produto_screen.dart';
+import 'features/venda/presentation/assinatura_screen.dart';
+import 'features/venda/presentation/comprovante_pagamento_screen.dart';
+import 'features/venda/presentation/comprovante_providers.dart';
 import 'features/venda/presentation/detalhes_venda_screen.dart';
+import 'features/venda/presentation/nota_provisoria_screen.dart';
 import 'features/venda/presentation/nova_venda_screen.dart';
+import 'features/venda/presentation/promissorias_screen.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -44,10 +49,23 @@ class CestaBasicaApp extends StatelessWidget {
         // AppRoutes.showcase).
         AppRoutes.showcase: (context) => const ShowcaseScreen(),
         AppRoutes.novaVenda: (context) => NovaVendaScreen(
-          clienteIdInicial: ModalRoute.of(context)!.settings.arguments as String?,
+          clienteIdInicial:
+              ModalRoute.of(context)!.settings.arguments as String?,
         ),
         AppRoutes.detalheVenda: (context) => DetalhesVendaScreen(
           vendaId: ModalRoute.of(context)!.settings.arguments! as String,
+        ),
+        AppRoutes.comprovante: (context) => ComprovantePagamentoScreen(
+          args: ModalRoute.of(context)!.settings.arguments! as ComprovanteArgs,
+        ),
+        AppRoutes.assinatura: (context) => AssinaturaScreen(
+          vendaId: ModalRoute.of(context)!.settings.arguments! as String,
+        ),
+        AppRoutes.notaProvisoria: (context) => NotaProvisoriaScreen(
+          vendaId: ModalRoute.of(context)!.settings.arguments! as String,
+        ),
+        AppRoutes.promissorias: (context) => PromissoriasScreen(
+          clienteId: ModalRoute.of(context)!.settings.arguments as String?,
         ),
         AppRoutes.cadastroCliente: (context) => const CadastroClienteScreen(),
         AppRoutes.detalheCliente: (context) => DetalhesClienteScreen(

@@ -3,12 +3,16 @@ import 'package:intl/intl.dart';
 /// Formatação de valores para exibição (pt-BR).
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: r'R$');
 final _data = DateFormat('dd/MM/yyyy');
+final _dataHora = DateFormat('dd/MM/yyyy HH:mm');
 
 String formatarMoeda(double valor) => _moeda.format(valor);
 
 /// [vazio] é exibido quando não há data (ex. cliente que nunca comprou).
 String formatarData(DateTime? data, {String vazio = '—'}) =>
     data == null ? vazio : _data.format(data);
+
+/// Data e hora, ex. "09/11/2026 14:30" (emissão de documentos).
+String formatarDataHora(DateTime data) => _dataHora.format(data);
 
 /// Valor para um campo de texto editável: "150,00", sem símbolo.
 String formatarValorEditavel(double valor) =>

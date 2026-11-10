@@ -5,8 +5,8 @@ import '../data/parcela_model.dart';
 /// vencendo em [primeiroVencimento].
 ///
 /// O cálculo é feito em centavos para não sobrar nem faltar dinheiro por
-/// arredondamento: os centavos que não dividem certo vão para a primeira
-/// parcela. Ex.: 100,00 em 3 = 33,34 + 33,33 + 33,33.
+/// arredondamento: os centavos que não dividem certo vão para a última
+/// parcela. Ex.: 100,00 em 3 = 33,33 + 33,33 + 33,34.
 List<ParcelaModel> gerarParcelas({
   required String vendaId,
   required double total,
@@ -21,7 +21,7 @@ List<ParcelaModel> gerarParcelas({
   final resto = totalCentavos - base * quantidade;
 
   return List.generate(quantidade, (i) {
-    final centavos = i == 0 ? base + resto : base;
+    final centavos = i == quantidade - 1 ? base + resto : base;
     return ParcelaModel(
       id: gerarId(),
       vendaId: vendaId,
@@ -42,4 +42,31 @@ DateTime somarMeses(DateTime data, int meses) {
   final ultimoDia = DateTime(ano, mes + 1, 0).day;
   final dia = data.day > ultimoDia ? ultimoDia : data.day;
   return DateTime(ano, mes, dia);
+}
+
+/// Mínimo de parcelas para uma venda parcelada; com uma só parcela a
+/// venda seria à vista.
+const minimoParcelas = 2;
+
+/// Valida o parcelamento escolhido. Devolve a mensagem do problema ou
+/// `null` se está tudo certo. [hoje] só existe para os testes.
+String? validarParcelamento({
+  required int quantidade,
+  required DateTime primeiroVencimento,
+  DateTime? hoje,
+}) {
+  if (quantidade < minimoParcelas) {
+    return 'Parcelado exige pelo menos $minimoParcelas parcelas.';
+  }
+  final agora = hoje ?? DateTime.now();
+  final dia = DateTime(agora.year, agora.month, agora.day);
+  final vencimento = DateTime(
+    primeiroVencimento.year,
+    primeiroVencimento.month,
+    primeiroVencimento.day,
+  );
+  if (vencimento.isBefore(dia)) {
+    return 'A data da 1ª parcela não pode ser anterior a hoje.';
+  }
+  return null;
 }

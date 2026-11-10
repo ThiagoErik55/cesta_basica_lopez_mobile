@@ -17,3 +17,25 @@ extension TipoVendaRotulo on TipoVenda {
     TipoVenda.parcelado => 'Parcelado',
   };
 }
+
+/// Situação de uma compra no histórico do cliente (KAN-33).
+enum SituacaoCompra { paga, emAberto, emAtraso, quitada }
+
+extension SituacaoCompraRotulo on SituacaoCompra {
+  String get rotulo => switch (this) {
+    SituacaoCompra.paga => 'Paga',
+    SituacaoCompra.emAberto => 'Em aberto',
+    SituacaoCompra.emAtraso => 'Em atraso',
+    SituacaoCompra.quitada => 'Quitada',
+  };
+}
+
+/// Rótulos da situação de uma promissória (KAN-34): `aberta` sem parcela
+/// vencida aparece como "Em dia".
+extension StatusPromissoriaRotulo on StatusPromissoria {
+  String get rotulo => switch (this) {
+    StatusPromissoria.aberta => 'Em dia',
+    StatusPromissoria.atrasada => 'Em atraso',
+    StatusPromissoria.paga => 'Quitada',
+  };
+}

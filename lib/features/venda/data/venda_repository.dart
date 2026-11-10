@@ -2,8 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/firebase_providers.dart';
-import '../../cliente/data/cliente_model.dart';
 import '../../estoque/data/movimento_estoque_model.dart';
+import '../../../core/domain/enums.dart';
+import '../domain/alteracao_parcela.dart';
+import '../domain/atualizacao_cliente.dart';
 import 'parcela_model.dart';
 import 'venda_model.dart';
 
@@ -29,7 +31,7 @@ class VendaRepository {
     required VendaModel venda,
     required List<ParcelaModel> parcelas,
     required List<MovimentoEstoqueModel> movimentos,
-    required ClienteModel clienteAtualizado,
+    required AtualizacaoClienteVenda cliente,
   }) async {
     final lote = _db.batch();
 
@@ -41,7 +43,68 @@ class VendaRepository {
 
     _gravarMovimentos(lote, movimentos);
 
-    lote.set(_clientes.doc(clienteAtualizado.id), clienteAtualizado.toMap());
+    _atualizarCliente(lote, cliente);
+
+    await lote.commit();
+  }
+
+  /// Atualiza só os campos que a venda altera. O valor em aberto soma no
+  /// servidor (FieldValue.increment), então duas vendas parceladas feitas
+  /// offline para o mesmo cliente não perdem o débito uma da outra.
+  void _atualizarCliente(WriteBatch lote, AtualizacaoClienteVenda c) {
+    final agora = DateTime.now().toIso8601String();
+    lote.update(_clientes.doc(c.clienteId), {
+      if (c.ultimaCompra != null)
+        'ultimaCompra': c.ultimaCompra!.toIso8601String(),
+      if (c.acrescimoEmAberto != 0)
+        'valorEmAberto': FieldValue.increment(c.acrescimoEmAberto),
+      if (c.proximoVencimento != null)
+        'proximoVencimento': c.proximoVencimento!.toIso8601String()
+      else if (c.limparProximoVencimento)
+        'proximoVencimento': null,
+      'updatedAt': agora,
+    });
+  }
+
+  /// Grava a alteração do valor de parcelas pendentes (KAN-32) em um
+  /// único batch: as parcelas, o total da venda e o valor em aberto do
+  /// cliente, quando a [diferencaTotal] não é zero.
+  ///
+  /// Nada é regravado por inteiro. A parcela recebe o valor novo e o
+  /// registro entra no histórico com arrayUnion; total da venda e valor
+  /// em aberto usam FieldValue.increment. Assim, alterações simultâneas
+  /// feitas offline não se sobrescrevem (ADR 001). Os vencimentos não
+  /// mudam, então `proximoVencimento` do cliente continua válido.
+  Future<void> alterarValoresParcelas({
+    required String vendaId,
+    required String clienteId,
+    required List<ParcelaAlterada> alteracoes,
+    required double diferencaTotal,
+  }) async {
+    final lote = _db.batch();
+    final agora = DateTime.now().toIso8601String();
+
+    for (final a in alteracoes) {
+      lote.update(_parcelas(vendaId).doc(a.parcelaId), {
+        'valor': a.alteracao.valorNovo,
+        'alteracoes': FieldValue.arrayUnion([a.alteracao.toMap()]),
+        'updatedAt': agora,
+      });
+    }
+
+    if (diferencaTotal != 0) {
+      lote.update(_vendas.doc(vendaId), {
+        'valorTotal': FieldValue.increment(diferencaTotal),
+        'updatedAt': agora,
+      });
+      _atualizarCliente(
+        lote,
+        AtualizacaoClienteVenda(
+          clienteId: clienteId,
+          acrescimoEmAberto: diferencaTotal,
+        ),
+      );
+    }
 
     await lote.commit();
   }
@@ -68,6 +131,24 @@ class VendaRepository {
     await lote.commit();
   }
 
+  /// Grava a assinatura do cliente (RF19, KAN-38). Só os campos da
+  /// assinatura e o `updatedAt` são escritos, nunca a venda inteira, e a
+  /// nova assinatura sobrescreve a anterior. O conteúdo da assinatura é
+  /// dado pessoal: não é logado.
+  Future<void> salvarAssinatura({
+    required String vendaId,
+    required String assinaturaBase64,
+    required DateTime assinadaEm,
+  }) async {
+    final lote = _db.batch();
+    lote.update(_vendas.doc(vendaId), {
+      'assinaturaBase64': assinaturaBase64,
+      'assinadaEm': assinadaEm.toIso8601String(),
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+    await lote.commit();
+  }
+
   /// Grava a observação pós-venda (RF26, KAN-29). Texto vazio limpa o
   /// campo.
   Future<void> salvarObservacao(String vendaId, String observacao) {
@@ -78,15 +159,67 @@ class VendaRepository {
     });
   }
 
-  /// Quita ou registra pagamento parcial, atualizando o cliente.
-  Future<void> registrarPagamento({
-    required ParcelaModel parcela,
-    required ClienteModel clienteAtualizado,
+  /// Grava um pagamento de parcela (KAN-33) em um único batch: o
+  /// pagamento entra na parcela e o cliente tem o valor em aberto e o
+  /// próximo vencimento atualizados.
+  ///
+  /// Só os campos que mudam são escritos. O pagamento entra com
+  /// arrayUnion e o valor em aberto com FieldValue.increment, então dois
+  /// recebimentos offline não se sobrescrevem (ADR 001). Se [quitada], a
+  /// parcela também vira paga.
+  Future<void> registrarPagamentoParcela({
+    required String vendaId,
+    required String parcelaId,
+    required PagamentoModel pagamento,
+    required bool quitada,
+    required AtualizacaoClienteVenda cliente,
   }) async {
     final lote = _db.batch();
-    lote.set(_parcelas(parcela.vendaId).doc(parcela.id), parcela.toMap());
-    lote.set(_clientes.doc(clienteAtualizado.id), clienteAtualizado.toMap());
+    lote.update(_parcelas(vendaId).doc(parcelaId), {
+      'pagamentos': FieldValue.arrayUnion([pagamento.toMap()]),
+      if (quitada) ...{
+        'pago': true,
+        'dataPagamento': pagamento.data.toIso8601String(),
+      },
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+    _atualizarCliente(lote, cliente);
     await lote.commit();
+  }
+
+  /// Parcelas de todas as vendas parceladas do cliente, para recalcular
+  /// o próximo vencimento. Lê do servidor e, sem conexão (ou se demorar),
+  /// do cache local, que as telas de venda já mantêm atualizado.
+  Future<List<ParcelaModel>> parcelasDoCliente(String clienteId) async {
+    Future<List<ParcelaModel>> ler(Source fonte) async {
+      final vendas = await _vendas
+          .where('deleted', isEqualTo: false)
+          .where('clienteId', isEqualTo: clienteId)
+          .orderBy('data', descending: true)
+          .get(GetOptions(source: fonte));
+      final ids = [
+        for (final d in vendas.docs)
+          if (VendaModel.fromMap(d.data()).ehPromissoria) d.id,
+      ];
+      final listas = await Future.wait([
+        for (final id in ids)
+          _parcelas(id)
+              .where('deleted', isEqualTo: false)
+              .orderBy('numero')
+              .get(GetOptions(source: fonte)),
+      ]);
+      return [
+        for (final s in listas)
+          for (final d in s.docs) ParcelaModel.fromMap(d.data()),
+      ];
+    }
+
+    try {
+      return await ler(Source.serverAndCache)
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      return ler(Source.cache);
+    }
   }
 
   /// Venda por id, atualizada em tempo real. `null` se não existe ou foi
@@ -105,6 +238,22 @@ class VendaRepository {
       .orderBy('data', descending: true)
       .snapshots()
       .map((s) => s.docs.map((d) => VendaModel.fromMap(d.data())).toList());
+
+  /// Todas as vendas parceladas, atualizadas em tempo real (KAN-34).
+  ///
+  /// Filtra só por `tipo`, que usa o índice de campo único criado
+  /// automaticamente: a exclusão lógica (`deleted`) é aplicada em memória
+  /// para não exigir índice composto novo.
+  Stream<List<VendaModel>> observarParceladas() => _vendas
+      .where('tipo', isEqualTo: TipoVenda.parcelado.name)
+      .snapshots()
+      .map(
+        (s) => [
+          for (final d in s.docs)
+            if (!VendaModel.fromMap(d.data()).deleted)
+              VendaModel.fromMap(d.data()),
+        ],
+      );
 
   Stream<List<VendaModel>> observarPorPeriodo(DateTime de, DateTime ate) =>
       _vendas

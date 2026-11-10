@@ -1,19 +1,23 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/domain/enums.dart';
 import '../../../core/providers/firebase_providers.dart';
+import '../../../core/providers/regra_bloqueio_provider.dart';
 import '../../../core/utils/id_generator.dart';
 import '../../cliente/data/cliente_model.dart';
 import '../../cliente/data/cliente_repository.dart';
+import '../../cliente/domain/regra_bloqueio.dart';
 import '../../estoque/data/movimento_estoque_model.dart';
 import '../../produto/data/produto_model.dart';
 import '../../produto/data/produto_repository.dart';
 import '../data/parcela_model.dart';
 import '../data/venda_model.dart';
 import '../data/venda_repository.dart';
+import '../domain/atualizacao_cliente.dart';
 import '../domain/calculo_parcelas.dart';
 import '../domain/carrinho.dart';
 import '../domain/pendencia_cliente.dart';
@@ -66,6 +70,8 @@ class NovaVendaState {
     this.pagamento,
     this.numeroParcelas = 2,
     required this.primeiroVencimento,
+    this.regra = regraBloqueioPadrao,
+    this.parcelasPendentes,
   });
 
   final ClienteModel? cliente;
@@ -75,6 +81,14 @@ class NovaVendaState {
   final OpcaoPagamento? pagamento;
   final int numeroParcelas;
   final DateTime primeiroVencimento;
+
+  /// Regra de bloqueio em vigor (KAN-35).
+  final RegraBloqueio regra;
+
+  /// Parcelas pendentes de todas as vendas do cliente selecionado, para
+  /// avaliar o bloqueio por atraso. `null` até carregar; nesse meio
+  /// tempo a avaliação usa o resumo do cliente.
+  final List<ParcelaModel>? parcelasPendentes;
 
   double get total => totalCarrinho(itens.values);
 
@@ -87,16 +101,38 @@ class NovaVendaState {
   PendenciaCliente? get pendencia {
     final c = cliente;
     if (c == null) return null;
-    return avaliarPendencia(c, valorVendaParcelada: parcelado ? total : 0);
+    return avaliarPendencia(
+      c,
+      regra: regra,
+      parcelasPendentes: parcelasPendentes,
+      valorVendaParcelada: parcelado ? total : 0,
+    );
   }
 
   /// O que ainda falta para finalizar, ou `null` se está tudo certo.
   String? get impedimento {
     if (cliente == null) return 'Selecione o cliente.';
+    final pendencia = this.pendencia;
+    if (pendencia != null &&
+        !pendencia.permiteAVista &&
+        !pendencia.permiteParcelado) {
+      return pendencia.mensagens.first;
+    }
     if (itens.isEmpty) return 'Adicione pelo menos um produto.';
     if (pagamento == null) return 'Escolha a forma de pagamento.';
-    if (parcelado && !(pendencia?.permiteParcelado ?? true)) {
-      return 'Cliente bloqueado: escolha um pagamento à vista.';
+    if (pendencia != null) {
+      if (parcelado && !pendencia.permiteParcelado) {
+        return pendencia.mensagens.first;
+      }
+      if (!parcelado && !pendencia.permiteAVista) {
+        return pendencia.mensagens.first;
+      }
+    }
+    if (parcelado) {
+      return validarParcelamento(
+        quantidade: numeroParcelas,
+        primeiroVencimento: primeiroVencimento,
+      );
     }
     return null;
   }
@@ -108,12 +144,18 @@ class NovaVendaState {
     bool limparPagamento = false,
     int? numeroParcelas,
     DateTime? primeiroVencimento,
+    List<ParcelaModel>? parcelasPendentes,
+    bool limparParcelasPendentes = false,
   }) => NovaVendaState(
     cliente: cliente ?? this.cliente,
     itens: itens ?? this.itens,
     pagamento: limparPagamento ? null : (pagamento ?? this.pagamento),
     numeroParcelas: numeroParcelas ?? this.numeroParcelas,
     primeiroVencimento: primeiroVencimento ?? this.primeiroVencimento,
+    regra: regra,
+    parcelasPendentes: limparParcelasPendentes
+        ? null
+        : (parcelasPendentes ?? this.parcelasPendentes),
   );
 }
 
@@ -150,18 +192,56 @@ class NovaVendaNotifier extends Notifier<NovaVendaState> {
         hoje.month,
         hoje.day,
       ).add(prazoPrimeiraParcela),
+      regra: ref.read(regraBloqueioProvider),
     );
   }
 
   // ---------------- Cliente (KAN-24) ----------------
 
   void selecionarCliente(ClienteModel cliente) {
-    var novo = state.copyWith(cliente: cliente);
-    // Cliente bloqueado não pode ficar com parcelado selecionado.
-    if (novo.parcelado && !(novo.pendencia?.permiteParcelado ?? true)) {
+    // As parcelas do cliente anterior não valem para o novo.
+    var novo = state.copyWith(cliente: cliente, limparParcelasPendentes: true);
+    // Cliente bloqueado não pode ficar com um pagamento que a pendência
+    // não permite (manual: nenhum; automático: parcelado).
+    final pendencia = novo.pendencia;
+    final pagamentoPermitido = novo.parcelado
+        ? (pendencia?.permiteParcelado ?? true)
+        : (pendencia?.permiteAVista ?? true);
+    if (novo.pagamento != null && !pagamentoPermitido) {
       novo = novo.copyWith(limparPagamento: true);
     }
     state = novo;
+    _carregarParcelasPendentes(cliente.id);
+  }
+
+  /// Busca as parcelas pendentes de todas as vendas do cliente para a
+  /// regra de bloqueio por atraso (KAN-35). Lê do servidor ou do cache
+  /// local, então funciona offline. Até chegar, vale o resumo do cliente.
+  Future<void> _carregarParcelasPendentes(String clienteId) async {
+    try {
+      final parcelas = await ref
+          .read(vendaRepositoryProvider)
+          .parcelasDoCliente(clienteId);
+      // O vendedor pode ter trocado de cliente enquanto carregava.
+      if (!ref.mounted || state.cliente?.id != clienteId) return;
+      var novo = state.copyWith(
+        parcelasPendentes: [
+          for (final p in parcelas)
+            if (!p.pago) p,
+        ],
+      );
+      final pendencia = novo.pendencia;
+      final pagamentoPermitido = novo.parcelado
+          ? (pendencia?.permiteParcelado ?? true)
+          : (pendencia?.permiteAVista ?? true);
+      if (novo.pagamento != null && !pagamentoPermitido) {
+        novo = novo.copyWith(limparPagamento: true);
+      }
+      state = novo;
+    } catch (e) {
+      // Sem as parcelas, segue valendo o resumo do cliente.
+      debugPrint('Erro ao carregar parcelas do cliente $clienteId: $e');
+    }
   }
 
   // ---------------- Carrinho (KAN-25) ----------------
@@ -264,16 +344,18 @@ class NovaVendaNotifier extends Notifier<NovaVendaState> {
           tipo: TipoMovimento.saida,
           quantidade: item.quantidade,
           data: agora,
+          custoUnitario: item.produto.custoAtual,
           vendedorUid: vendedorUid,
           updatedAt: agora,
         ),
     ];
 
-    final clienteAtualizado = _atualizarCliente(
-      cliente,
+    final atualizacaoCliente = atualizacaoClienteDaVenda(
+      clienteId: cliente.id,
       agora: agora,
-      valorParcelado: s.parcelado ? total : 0,
-      primeiroVencimento: parcelas.isEmpty ? null : parcelas.first.vencimento,
+      parcelas: parcelas,
+      valorEmAbertoAtual: cliente.valorEmAberto,
+      proximoVencimentoAtual: cliente.proximoVencimento,
     );
 
     final escrita = ref
@@ -282,35 +364,13 @@ class NovaVendaNotifier extends Notifier<NovaVendaState> {
           venda: venda,
           parcelas: parcelas,
           movimentos: movimentos,
-          clienteAtualizado: clienteAtualizado,
+          cliente: atualizacaoCliente,
         );
     final sincronizado = await escrita
         .then((_) => true)
         .timeout(_esperaConfirmacao, onTimeout: () => false);
 
     return VendaFinalizada(venda: venda, sincronizado: sincronizado);
-  }
-
-  /// Última compra sempre; valor em aberto e próximo vencimento só em
-  /// venda parcelada (campos desnormalizados, ADR 002 decisão 6).
-  ClienteModel _atualizarCliente(
-    ClienteModel cliente, {
-    required DateTime agora,
-    required double valorParcelado,
-    required DateTime? primeiroVencimento,
-  }) {
-    if (primeiroVencimento == null) {
-      return cliente.copyWith(ultimaCompra: agora);
-    }
-    final atual = cliente.temDebito ? cliente.proximoVencimento : null;
-    final proximo = atual != null && atual.isBefore(primeiroVencimento)
-        ? atual
-        : primeiroVencimento;
-    return cliente.copyWith(
-      ultimaCompra: agora,
-      valorEmAberto: cliente.valorEmAberto + valorParcelado,
-      proximoVencimento: proximo,
-    );
   }
 }
 

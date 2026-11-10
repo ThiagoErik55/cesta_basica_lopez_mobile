@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,6 +12,9 @@ import '../../produto/data/produto_model.dart';
 import '../data/parcela_model.dart';
 import '../data/venda_model.dart';
 import '../data/venda_repository.dart';
+import '../domain/alteracao_parcela.dart';
+import '../domain/atualizacao_cliente.dart';
+import '../domain/registro_pagamento.dart';
 import '../domain/troca.dart';
 
 /// Venda por id, em tempo real (tela de detalhes da venda).
@@ -25,6 +30,11 @@ final parcelasDaVendaProvider = StreamProvider.autoDispose
           ref.watch(vendaRepositoryProvider).observarParcelas(vendaId),
     );
 
+/// Todas as vendas parceladas (KAN-34), de qualquer cliente.
+final vendasParceladasProvider = StreamProvider.autoDispose<List<VendaModel>>(
+  (ref) => ref.watch(vendaRepositoryProvider).observarParceladas(),
+);
+
 /// Vendas de um cliente, da mais recente para a mais antiga.
 final vendasDoClienteProvider = StreamProvider.autoDispose
     .family<List<VendaModel>, String>(
@@ -32,9 +42,24 @@ final vendasDoClienteProvider = StreamProvider.autoDispose
           ref.watch(vendaRepositoryProvider).observarPorCliente(clienteId),
     );
 
-final posVendaProvider = AsyncNotifierProvider.autoDispose<PosVendaNotifier, void>(
-  PosVendaNotifier.new,
-);
+/// Resultado de [PosVendaNotifier.registrarPagamentoDaParcela].
+class PagamentoRegistrado {
+  const PagamentoRegistrado({
+    required this.pagamentoId,
+    required this.sincronizado,
+  });
+
+  /// Id do pagamento criado, para abrir o comprovante (KAN-36).
+  final String pagamentoId;
+
+  /// `false` quando a gravação ficou na fila offline do Firestore.
+  final bool sincronizado;
+}
+
+final posVendaProvider =
+    AsyncNotifierProvider.autoDispose<PosVendaNotifier, void>(
+      PosVendaNotifier.new,
+    );
 
 /// Ações sobre uma venda já registrada: troca (KAN-28) e observação
 /// (KAN-29). Os métodos retornam `true` se o servidor confirmou e
@@ -131,9 +156,108 @@ class PosVendaNotifier extends AsyncNotifier<void> {
     );
   }
 
+  /// Altera o valor de uma parcela pendente (KAN-32). O cálculo é refeito
+  /// aqui com os dados atuais; se a alteração for recusada pelas regras
+  /// do domínio, lança [ArgumentError] com a mensagem.
+  Future<bool> registrarAlteracaoParcela({
+    required VendaModel venda,
+    required List<ParcelaModel> parcelas,
+    required String parcelaId,
+    required double novoValor,
+    required ModoCompensacao modo,
+    String? motivo,
+  }) {
+    final resultado = alterarValorParcela(
+      parcelas: parcelas,
+      parcelaId: parcelaId,
+      novoValor: novoValor,
+      modo: modo,
+      valorTotalVenda: venda.valorTotal,
+      motivo: motivo,
+    );
+    if (!resultado.ok) throw ArgumentError(resultado.erro);
+
+    return _executar(
+      ref
+          .read(vendaRepositoryProvider)
+          .alterarValoresParcelas(
+            vendaId: venda.id,
+            clienteId: venda.clienteId,
+            alteracoes: resultado.alteradas,
+            diferencaTotal: resultado.diferencaTotal,
+          ),
+    );
+  }
+
+  /// Registra um pagamento (total ou parcial) em uma parcela pendente
+  /// (KAN-33). Recusas das regras do domínio viram [ArgumentError] com a
+  /// mensagem. Devolve o id do pagamento, para o comprovante (KAN-36).
+  ///
+  /// O próximo vencimento do cliente é o menor entre as parcelas
+  /// pendentes de **todas** as vendas dele, e não só desta.
+  Future<PagamentoRegistrado> registrarPagamentoDaParcela({
+    required VendaModel venda,
+    required List<ParcelaModel> parcelas,
+    required String parcelaId,
+    required double valor,
+    required FormaPagamento forma,
+    required DateTime data,
+    String? observacao,
+  }) async {
+    final resultado = registrarPagamentoParcela(
+      parcelasDaVenda: parcelas,
+      parcelaId: parcelaId,
+      valor: valor,
+      forma: forma,
+      data: data,
+      observacao: observacao,
+    );
+    if (!resultado.ok) throw ArgumentError(resultado.erro);
+
+    final repositorio = ref.read(vendaRepositoryProvider);
+    final doCliente = await repositorio.parcelasDoCliente(venda.clienteId);
+    final depois = [
+      ...doCliente.where((p) => p.vendaId != venda.id),
+      for (final p in parcelas)
+        p.id == parcelaId ? resultado.parcelaAtualizada! : p,
+    ];
+    final proximo = proximoVencimentoPendente(depois);
+
+    final sincronizado = await _executar(
+      repositorio.registrarPagamentoParcela(
+        vendaId: venda.id,
+        parcelaId: parcelaId,
+        pagamento: resultado.pagamento!,
+        quitada: resultado.parcelaQuitada,
+        cliente: AtualizacaoClienteVenda(
+          clienteId: venda.clienteId,
+          acrescimoEmAberto: -resultado.pagamento!.valor,
+          proximoVencimento: proximo,
+          limparProximoVencimento: proximo == null,
+        ),
+      ),
+    );
+    return PagamentoRegistrado(
+      pagamentoId: resultado.pagamento!.id,
+      sincronizado: sincronizado,
+    );
+  }
+
   /// Grava a observação pós-venda (RF26). Texto vazio apaga.
   Future<bool> salvarObservacao(String vendaId, String texto) => _executar(
     ref.read(vendaRepositoryProvider).salvarObservacao(vendaId, texto),
+  );
+
+  /// Grava a assinatura do cliente na venda (RF19, KAN-38), sobrescrevendo
+  /// a anterior. O conteúdo não é logado (LGPD).
+  Future<bool> salvarAssinatura(String vendaId, Uint8List imagem) => _executar(
+    ref
+        .read(vendaRepositoryProvider)
+        .salvarAssinatura(
+          vendaId: vendaId,
+          assinaturaBase64: base64Encode(imagem),
+          assinadaEm: DateTime.now(),
+        ),
   );
 
   Future<bool> _executar(Future<void> escrita) async {

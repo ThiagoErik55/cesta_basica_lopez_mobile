@@ -16,6 +16,22 @@ class AppRoutes {
   /// id da venda (String) em `arguments` do Navigator.pushNamed.
   static const String detalheVenda = '/vendas/detalhe';
 
+  /// Controle de promissórias (KAN-34). Opcionalmente recebe o id do
+  /// cliente (String) em `arguments` para listar só as dele.
+  static const String promissorias = '/promissorias';
+
+  /// Comprovante de um pagamento (KAN-36). Recebe um `ComprovanteArgs`
+  /// (venda, parcela e pagamento) em `arguments`.
+  static const String comprovante = '/comprovante';
+
+  /// Nota provisória de compra e venda (KAN-37). Recebe o id da venda
+  /// (String) em `arguments`.
+  static const String notaProvisoria = '/vendas/nota-provisoria';
+
+  /// Coleta da assinatura do cliente (KAN-38). Recebe o id da venda
+  /// (String) em `arguments`.
+  static const String assinatura = '/vendas/assinatura';
+
   /// Cadastro de cliente (RF01), aberto pelo FAB da aba Clientes.
   static const String cadastroCliente = '/clientes/novo';
 
