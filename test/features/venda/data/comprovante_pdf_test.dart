@@ -13,6 +13,7 @@ ComprovantePagamento _comprovante({
   numero: '2611091530-P2-1',
   clienteNome: nome,
   cpfMascarado: '529.***.***-25',
+  telefone: '(45) 99999-0001',
   numeroNota: 2611091530,
   numeroParcela: 2,
   totalParcelas: 5,

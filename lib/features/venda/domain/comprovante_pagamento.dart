@@ -14,6 +14,7 @@ class ComprovantePagamento {
     required this.numero,
     required this.clienteNome,
     required this.cpfMascarado,
+    required this.telefone,
     required this.numeroNota,
     required this.numeroParcela,
     required this.totalParcelas,
@@ -34,6 +35,10 @@ class ComprovantePagamento {
 
   /// CPF com só os 3 primeiros e os 2 últimos dígitos (LGPD).
   final String cpfMascarado;
+
+  /// Telefone do cliente como cadastrado. Não aparece no PDF; serve para
+  /// endereçar o envio por WhatsApp (KAN-39).
+  final String telefone;
   final int numeroNota;
   final int numeroParcela;
   final int totalParcelas;
@@ -131,6 +136,7 @@ ResultadoComprovante montarComprovantePagamento({
       numero: '${venda.numeroNota}-P${parcela.numero}-${indice + 1}',
       clienteNome: cliente.nome,
       cpfMascarado: mascararCpf(cliente.cpf),
+      telefone: cliente.telefone,
       numeroNota: venda.numeroNota,
       numeroParcela: parcela.numero,
       totalParcelas: ativas.length,
