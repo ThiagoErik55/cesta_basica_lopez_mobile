@@ -5,6 +5,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/connection_badge.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/pdf_preview_compartilhavel.dart';
+import '../domain/mensagens_whatsapp.dart';
 import 'nota_provisoria_providers.dart';
 
 /// Nota provisória de compra e venda (KAN-37): visualiza o PDF e permite
@@ -33,6 +34,10 @@ class NotaProvisoriaScreen extends ConsumerWidget {
           bytes: gerado.bytes,
           nomeArquivo: gerado.nomeArquivo,
           mensagemErroCompartilhar: 'Não foi possível compartilhar a nota.',
+          whatsapp: DadosWhatsapp(
+            mensagem: mensagemNota(gerado.nota),
+            telefone: gerado.nota.telefone,
+          ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) {
