@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -244,6 +246,18 @@ class PosVendaNotifier extends AsyncNotifier<void> {
   /// Grava a observação pós-venda (RF26). Texto vazio apaga.
   Future<bool> salvarObservacao(String vendaId, String texto) => _executar(
     ref.read(vendaRepositoryProvider).salvarObservacao(vendaId, texto),
+  );
+
+  /// Grava a assinatura do cliente na venda (RF19, KAN-38), sobrescrevendo
+  /// a anterior. O conteúdo não é logado (LGPD).
+  Future<bool> salvarAssinatura(String vendaId, Uint8List imagem) => _executar(
+    ref
+        .read(vendaRepositoryProvider)
+        .salvarAssinatura(
+          vendaId: vendaId,
+          assinaturaBase64: base64Encode(imagem),
+          assinadaEm: DateTime.now(),
+        ),
   );
 
   Future<bool> _executar(Future<void> escrita) async {

@@ -85,23 +85,45 @@ class _NovaVendaScreenState extends ConsumerState<NovaVendaScreen> {
       final resultado = await ref.read(novaVendaProvider.notifier).finalizar();
       if (!mounted) return;
       ref.invalidate(clientePorIdProvider(resultado.venda.clienteId));
+      final vendaId = resultado.venda.id;
+      // Nota e assinatura são geradas e gravadas no aparelho, então as
+      // duas ações funcionam mesmo offline.
       mensageiro.showSnackBar(
         SnackBar(
-          content: Text(
-            resultado.sincronizado
-                ? 'Venda registrada.'
-                : 'Venda salva no aparelho. Será enviada quando houver '
-                      'conexão.',
-          ),
-          // Tempo para dar para tocar na ação antes de a mensagem sumir.
-          duration: const Duration(seconds: 8),
-          // A nota é gerada no aparelho, então abre mesmo offline.
-          action: SnackBarAction(
-            label: 'Ver nota',
-            onPressed: () => navegador.pushNamed(
-              AppRoutes.notaProvisoria,
-              arguments: resultado.venda.id,
-            ),
+          // Tempo para dar para tocar nas ações antes de a mensagem sumir.
+          duration: const Duration(seconds: 10),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                resultado.sincronizado
+                    ? 'Venda registrada.'
+                    : 'Venda salva no aparelho. Será enviada quando houver '
+                          'conexão.',
+              ),
+              Wrap(
+                spacing: AppSpacing.sm,
+                children: [
+                  for (final (rotulo, rota) in [
+                    ('Ver nota', AppRoutes.notaProvisoria),
+                    ('Coletar assinatura', AppRoutes.assinatura),
+                  ])
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor: Theme.of(context)
+                            .colorScheme
+                            .inversePrimary,
+                      ),
+                      onPressed: () {
+                        mensageiro.hideCurrentSnackBar();
+                        navegador.pushNamed(rota, arguments: vendaId);
+                      },
+                      child: Text(rotulo),
+                    ),
+                ],
+              ),
+            ],
           ),
         ),
       );

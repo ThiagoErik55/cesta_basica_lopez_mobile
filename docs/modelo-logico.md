@@ -2,7 +2,7 @@
 
 **Projeto:** Sistema de Força de Vendas — Cesta Básica Lopez
 **Projeto Integrador III — Faculdade Donaduzzi — Grupo 01**
-**Versão:** 1.4 · Sprint 5
+**Versão:** 1.5 · Sprint 5
 **Referência:** Levantamento de Requisitos v01, ADR 001, ADR 002
 
 ---
@@ -85,6 +85,7 @@ erDiagram
     string formaPagamento
     string tipo
     text assinaturaBase64
+    datetime assinadaEm
     text observacao
   }
   ITEM_VENDA {
@@ -204,6 +205,7 @@ erDiagram
     string formaPagamento
     string tipo
     text assinaturaBase64
+    datetime assinadaEm
     text observacao
   }
   ITEM_VENDA {
@@ -373,7 +375,8 @@ Pedido registrado no atendimento (RF10, RF12, RF18, RF19, RF26). Quando `tipo = 
 | valorTotal | decimal | Soma dos itens |
 | formaPagamento | enum | Opcional. `pix`, `credito`, `debito`, `valeAlimentacao` ou `dinheiro`. Preenchido apenas em venda à vista |
 | tipo | enum | `aVista` ou `parcelado` |
-| assinaturaBase64 | text | Assinatura digital do cliente (RF19) |
+| assinaturaBase64 | text | Assinatura digital do cliente (RF19): PNG com fundo branco, até 600 px de largura, em base64. Opcional; não bloqueia a venda |
+| assinadaEm | datetime | Opcional. Data e hora da assinatura (KAN-38); refazer a assinatura atualiza o campo |
 | observacao | text | Registro pós-venda, ex. troca realizada (RF26) |
 
 ### ITEM_VENDA
@@ -615,3 +618,4 @@ As entidades CLIENTE e VENDA armazenam dados pessoais (CPF, endereço, telefone 
 | 16/09/2026 | 1.2 | Ajustes de documentação decorrentes da implementação: escopo dos atributos comuns restrito às entidades com coleção própria; registro das desnormalizações de `ITEM_VENDA.nome`, `TROCA_ITEM.produtoNovoNome`, `VISITA.clienteNome` e `MOVIMENTO_ESTOQUE.vendedorUid`; nota sobre ausência de chave estrangeira em estruturas embutidas. |
 | 09/11/2026 | 1.3 | Alteração do valor de parcela (KAN-32): atributo `alteracoes` acrescentado a PARCELA como estrutura embutida; operação "Alterar valor de parcela" incluída entre as escritas em lote. |
 | 09/11/2026 | 1.4 | Registro de pagamento e histórico financeiro (KAN-33): atributo `observacao` acrescentado a PAGAMENTO; esclarecido o vínculo do pagamento com venda e cliente por meio dos documentos que o contêm; operação "Quitar parcela" renomeada para "Registrar pagamento de parcela", que também cobre pagamento parcial. |
+| 10/11/2026 | 1.5 | Assinatura digital (KAN-38): atributo `assinadaEm` acrescentado a VENDA; `assinaturaBase64` passa a ter formato definido (PNG, até 600 px) e a ser sobrescrita ao refazer. |

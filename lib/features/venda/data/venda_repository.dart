@@ -131,6 +131,24 @@ class VendaRepository {
     await lote.commit();
   }
 
+  /// Grava a assinatura do cliente (RF19, KAN-38). Só os campos da
+  /// assinatura e o `updatedAt` são escritos, nunca a venda inteira, e a
+  /// nova assinatura sobrescreve a anterior. O conteúdo da assinatura é
+  /// dado pessoal: não é logado.
+  Future<void> salvarAssinatura({
+    required String vendaId,
+    required String assinaturaBase64,
+    required DateTime assinadaEm,
+  }) async {
+    final lote = _db.batch();
+    lote.update(_vendas.doc(vendaId), {
+      'assinaturaBase64': assinaturaBase64,
+      'assinadaEm': assinadaEm.toIso8601String(),
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+    await lote.commit();
+  }
+
   /// Grava a observação pós-venda (RF26, KAN-29). Texto vazio limpa o
   /// campo.
   Future<void> salvarObservacao(String vendaId, String observacao) {

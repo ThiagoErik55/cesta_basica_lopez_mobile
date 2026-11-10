@@ -28,6 +28,10 @@ class AppRoutes {
   /// (String) em `arguments`.
   static const String notaProvisoria = '/vendas/nota-provisoria';
 
+  /// Coleta da assinatura do cliente (KAN-38). Recebe o id da venda
+  /// (String) em `arguments`.
+  static const String assinatura = '/vendas/assinatura';
+
   /// Cadastro de cliente (RF01), aberto pelo FAB da aba Clientes.
   static const String cadastroCliente = '/clientes/novo';
 
