@@ -5,6 +5,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/connection_badge.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/pdf_preview_compartilhavel.dart';
+import '../domain/mensagens_whatsapp.dart';
 import 'comprovante_providers.dart';
 
 /// Comprovante de pagamento (RF17, KAN-36): visualiza o PDF e permite
@@ -34,6 +35,10 @@ class ComprovantePagamentoScreen extends ConsumerWidget {
           nomeArquivo: gerado.nomeArquivo,
           mensagemErroCompartilhar:
               'Não foi possível compartilhar o comprovante.',
+          whatsapp: DadosWhatsapp(
+            mensagem: mensagemComprovante(gerado.comprovante),
+            telefone: gerado.comprovante.telefone,
+          ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) {

@@ -11,9 +11,12 @@ import 'package:printing/printing.dart';
 /// reutilizá-lo, e o envio específico por WhatsApp (KAN-39) pode vir como
 /// outra implementação, trocada em [compartilhadorPdfProvider].
 abstract class CompartilhadorPdf {
+  /// [mensagem] acompanha o arquivo quando o app de destino aceita texto
+  /// (WhatsApp, e-mail...).
   Future<void> compartilhar({
     required Uint8List bytes,
     required String nomeArquivo,
+    String? mensagem,
   });
 }
 
@@ -26,10 +29,16 @@ class CompartilhadorPdfSistema implements CompartilhadorPdf {
   Future<void> compartilhar({
     required Uint8List bytes,
     required String nomeArquivo,
+    String? mensagem,
   }) async {
     // Devolve false quando o usuário fecha a folha sem escolher nada,
-    // o que não é erro.
-    await Printing.sharePdf(bytes: bytes, filename: nomeArquivo);
+    // o que não é erro. `body` vira o texto junto do arquivo no Android
+    // e no iOS.
+    await Printing.sharePdf(
+      bytes: bytes,
+      filename: nomeArquivo,
+      body: mensagem,
+    );
   }
 }
 
