@@ -24,6 +24,10 @@ class AppRoutes {
   /// (venda, parcela e pagamento) em `arguments`.
   static const String comprovante = '/comprovante';
 
+  /// Nota provisória de compra e venda (KAN-37). Recebe o id da venda
+  /// (String) em `arguments`.
+  static const String notaProvisoria = '/vendas/nota-provisoria';
+
   /// Cadastro de cliente (RF01), aberto pelo FAB da aba Clientes.
   static const String cadastroCliente = '/clientes/novo';
 
