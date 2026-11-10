@@ -59,6 +59,7 @@ class _NovaVendaScreenState extends ConsumerState<NovaVendaScreen> {
   Future<void> _finalizar() async {
     final venda = ref.read(novaVendaProvider);
     final mensageiro = ScaffoldMessenger.of(context);
+    final navegador = Navigator.of(context);
 
     final impedimento = venda.impedimento;
     if (impedimento != null) {
@@ -92,9 +93,19 @@ class _NovaVendaScreenState extends ConsumerState<NovaVendaScreen> {
                 : 'Venda salva no aparelho. Será enviada quando houver '
                       'conexão.',
           ),
+          // Tempo para dar para tocar na ação antes de a mensagem sumir.
+          duration: const Duration(seconds: 8),
+          // A nota é gerada no aparelho, então abre mesmo offline.
+          action: SnackBarAction(
+            label: 'Ver nota',
+            onPressed: () => navegador.pushNamed(
+              AppRoutes.notaProvisoria,
+              arguments: resultado.venda.id,
+            ),
+          ),
         ),
       );
-      Navigator.of(context).pushReplacementNamed(
+      navegador.pushReplacementNamed(
         AppRoutes.detalheVenda,
         arguments: resultado.venda.id,
       );

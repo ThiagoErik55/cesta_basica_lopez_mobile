@@ -172,6 +172,13 @@ class _Detalhes extends StatelessWidget {
 
         const SizedBox(height: AppSpacing.lg),
         SecondaryButton(
+          texto: 'Nota provisória',
+          onPressed: () =>
+              Navigator.of(context)
+                  .pushNamed(AppRoutes.notaProvisoria, arguments: venda.id),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SecondaryButton(
           texto: 'Registrar troca',
           onPressed: podeTrocar ? () => registrarTroca(context, venda) : null,
         ),
