@@ -227,9 +227,10 @@ class _Parcelas extends ConsumerWidget {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) {
                 debugPrint('Erro ao carregar parcelas: $error');
-                return const Text(
-                  'Erro ao carregar parcelas.',
-                  style: AppTextStyles.body,
+                return const EmptyState(
+                  icone: Icons.error_outline,
+                  titulo: 'Erro ao carregar parcelas',
+                  descricao: 'Verifique a conexão e abra a venda novamente.',
                 );
               },
             ),
