@@ -11,6 +11,8 @@ import '../../../core/widgets/connection_badge.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/filter_chip_bar.dart';
 import '../../auth/presentation/logout_button.dart';
+import '../../rota/domain/associacao_rota.dart';
+import '../../rota/presentation/rota_providers.dart';
 import '../domain/status_pagamento.dart';
 import 'cliente_providers.dart';
 
@@ -60,6 +62,8 @@ class _ClientesScreenState extends ConsumerState<ClientesScreen> {
   Widget build(BuildContext context) {
     final clientes = ref.watch(clientesProvider);
     final filtro = ref.watch(filtroClientesProvider);
+    // Rotas ativas (KAN-46): nome no card e opções do filtro por rota.
+    final rotas = ref.watch(rotasAtivasProvider).value ?? const [];
 
     return Scaffold(
       appBar: AppBar(
@@ -121,6 +125,25 @@ class _ClientesScreenState extends ConsumerState<ClientesScreen> {
                 .read(filtroClientesProvider.notifier)
                 .filtrarPorStatus,
           ),
+          if (rotas.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            FilterChipBar<FiltroRotaCliente>(
+              opcoes: [
+                const OpcaoFiltro('Todas as rotas', FiltroRotaCliente.todas()),
+                const OpcaoFiltro('Sem rota', FiltroRotaCliente.semRota()),
+                for (final r
+                    in ([...rotas]..sort(
+                      (a, b) =>
+                          a.nome.toLowerCase().compareTo(b.nome.toLowerCase()),
+                    )))
+                  OpcaoFiltro(r.nome, FiltroRotaCliente.daRota(r.id)),
+              ],
+              selecionado: filtro.rota,
+              onSelecionar: (f) => ref
+                  .read(filtroClientesProvider.notifier)
+                  .filtrarPorRota(f ?? const FiltroRotaCliente.todas()),
+            ),
+          ],
           const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: clientes.when(
@@ -142,6 +165,7 @@ class _ClientesScreenState extends ConsumerState<ClientesScreen> {
                           const SizedBox(height: AppSpacing.sm),
                       itemBuilder: (context, i) => ClientCard(
                         cliente: lista[i],
+                        rotaNome: nomeDaRota(lista[i].rotaId, rotas),
                         onTap: () => Navigator.of(context).pushNamed(
                           AppRoutes.detalheCliente,
                           arguments: lista[i].id,
@@ -170,12 +194,15 @@ class _ClientesScreenState extends ConsumerState<ClientesScreen> {
   }
 
   Widget _vazio(FiltroClientes filtro) {
-    final semFiltro = filtro.termo.isEmpty && filtro.status == null;
+    final semFiltro =
+        filtro.termo.isEmpty && filtro.status == null && !filtro.rota.ativo;
     final descricao = switch ((filtro.termo, filtro.status)) {
       ('', final status?) => 'Nenhum cliente com status "${status.rotulo}".',
-      (final termo, null) => 'Nenhum nome começa com "$termo".',
+      (final termo, null) when termo.isNotEmpty =>
+        'Nenhum nome começa com "$termo".',
       (final termo, final status?) =>
         'Nenhum cliente "${status.rotulo}" com nome começando por "$termo".',
+      _ => 'Nenhum cliente nesta rota.',
     };
 
     return Center(
