@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/domain/enums.dart';
 import '../../../core/providers/firebase_providers.dart';
+import '../../../core/utils/stream_com_cache.dart';
 import '../../../core/utils/id_generator.dart';
 import '../../estoque/data/movimento_estoque_model.dart';
 import '../../produto/data/produto_model.dart';
@@ -25,64 +26,7 @@ final vendaPorIdProvider = StreamProvider.autoDispose
 
 /// Tempo de espera pela primeira leitura das parcelas antes de cair no
 /// cache local.
-const esperaParcelasAntesDoCache = Duration(seconds: 8);
-
-/// Repassa [origem] e, se ela não emitir nada em [espera], emite o que
-/// [cache] devolver (sem perder as emissões que chegarem depois). Cache
-/// vazio vira [TimeoutException], para a tela mostrar erro em vez de uma
-/// lista vazia enganosa. Erros da [origem] são repassados.
-Stream<List<T>> comFallbackDeCache<T>(
-  Stream<List<T>> origem,
-  Future<List<T>> Function() cache, {
-  Duration espera = esperaParcelasAntesDoCache,
-}) {
-  late final StreamController<List<T>> controlador;
-  StreamSubscription<List<T>>? assinatura;
-  Timer? relogio;
-  var recebeu = false;
-
-  controlador = StreamController<List<T>>(
-    onListen: () {
-      assinatura = origem.listen(
-        (dados) {
-          recebeu = true;
-          relogio?.cancel();
-          controlador.add(dados);
-        },
-        onError: (Object e, StackTrace s) {
-          recebeu = true;
-          relogio?.cancel();
-          controlador.addError(e, s);
-        },
-        onDone: () {
-          relogio?.cancel();
-          controlador.close();
-        },
-      );
-      relogio = Timer(espera, () async {
-        if (recebeu || controlador.isClosed) return;
-        try {
-          final doCache = await cache();
-          if (recebeu || controlador.isClosed) return;
-          if (doCache.isEmpty) {
-            controlador.addError(
-              TimeoutException('Sem resposta do servidor nem dados em cache.'),
-            );
-          } else {
-            controlador.add(doCache);
-          }
-        } catch (e, s) {
-          if (!recebeu && !controlador.isClosed) controlador.addError(e, s);
-        }
-      });
-    },
-    onCancel: () {
-      relogio?.cancel();
-      return assinatura?.cancel();
-    },
-  );
-  return controlador.stream;
-}
+const esperaParcelasAntesDoCache = esperaPadraoAntesDoCache;
 
 /// Parcelas de uma venda parcelada.
 ///

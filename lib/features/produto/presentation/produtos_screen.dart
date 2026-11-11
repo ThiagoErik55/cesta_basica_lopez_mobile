@@ -62,9 +62,14 @@ class _ProdutosScreenState extends ConsumerState<ProdutosScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Produtos'),
-        actions: const [
-          LogoutButton(),
-          Padding(
+        actions: [
+          IconButton(
+            tooltip: 'Controle de estoque',
+            icon: const Icon(Icons.warehouse_outlined),
+            onPressed: () => Navigator.of(context).pushNamed(AppRoutes.estoque),
+          ),
+          const LogoutButton(),
+          const Padding(
             padding: EdgeInsets.only(right: AppSpacing.md),
             child: Center(child: ConnectionBadge()),
           ),

@@ -1,4 +1,5 @@
 import '../../../core/domain/enums.dart';
+import '../../../core/utils/texto.dart';
 import '../data/parcela_model.dart';
 import '../data/venda_model.dart';
 import 'promissoria.dart';
@@ -151,48 +152,13 @@ List<ItemPromissoria> filtrarPromissorias(
   StatusPromissoria? situacao,
   String termo = '',
 }) {
-  final busca = _normalizar(termo.trim());
+  final busca = normalizarBusca(termo.trim());
   return [
     for (final i in itens)
       if ((situacao == null || i.situacao == situacao) &&
           (busca.isEmpty ||
               i.numeroNota.toString().contains(busca) ||
-              _normalizar(i.clienteNome).contains(busca)))
+              normalizarBusca(i.clienteNome).contains(busca)))
         i,
   ];
-}
-
-const _acentos = {
-  'á': 'a',
-  'à': 'a',
-  'â': 'a',
-  'ã': 'a',
-  'ä': 'a',
-  'é': 'e',
-  'è': 'e',
-  'ê': 'e',
-  'ë': 'e',
-  'í': 'i',
-  'ì': 'i',
-  'î': 'i',
-  'ï': 'i',
-  'ó': 'o',
-  'ò': 'o',
-  'ô': 'o',
-  'õ': 'o',
-  'ö': 'o',
-  'ú': 'u',
-  'ù': 'u',
-  'û': 'u',
-  'ü': 'u',
-  'ç': 'c',
-  'ñ': 'n',
-};
-
-String _normalizar(String texto) {
-  final b = StringBuffer();
-  for (final c in texto.toLowerCase().split('')) {
-    b.write(_acentos[c] ?? c);
-  }
-  return b.toString();
 }
