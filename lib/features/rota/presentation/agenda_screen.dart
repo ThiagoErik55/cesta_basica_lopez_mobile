@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/navigation/app_routes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/connection_badge.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -15,9 +16,15 @@ class AgendaScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Agenda'),
-        actions: const [
-          LogoutButton(),
-          Padding(
+        actions: [
+          // Cadastro de rotas (KAN-45): as rotas organizam a agenda.
+          IconButton(
+            tooltip: 'Rotas',
+            icon: const Icon(Icons.route_outlined),
+            onPressed: () => Navigator.of(context).pushNamed(AppRoutes.rotas),
+          ),
+          const LogoutButton(),
+          const Padding(
             padding: EdgeInsets.only(right: AppSpacing.md),
             child: Center(child: ConnectionBadge()),
           ),

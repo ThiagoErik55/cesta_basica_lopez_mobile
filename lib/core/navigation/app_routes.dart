@@ -38,6 +38,10 @@ class AppRoutes {
   /// alertas.
   static const String estoque = '/estoque';
 
+  /// Cadastro de rotas (KAN-45, RF06): lista, criação, edição e exclusão
+  /// lógica. Aberta pelo ícone "Rotas" da aba Agenda.
+  static const String rotas = '/rotas';
+
   /// Cadastro de cliente (RF01), aberto pelo FAB da aba Clientes.
   static const String cadastroCliente = '/clientes/novo';
 
