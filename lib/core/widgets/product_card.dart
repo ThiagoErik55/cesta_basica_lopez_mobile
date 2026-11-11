@@ -7,10 +7,23 @@ import '../theme/app_text_styles.dart';
 
 /// Card de produto usado na tela de estoque.
 class ProductCard extends StatelessWidget {
-  const ProductCard({required this.produto, this.onTap, super.key});
+  const ProductCard({
+    required this.produto,
+    this.onTap,
+    this.selo,
+    this.detalhes = const [],
+    super.key,
+  });
 
   final ProdutoModel produto;
   final VoidCallback? onTap;
+
+  /// Substitui o selo padrão de estoque baixo (ex.: a situação do estoque
+  /// na tela de controle de estoque, KAN-41).
+  final Widget? selo;
+
+  /// Linhas extras abaixo do estoque (categoria, preço, custo...).
+  final List<Widget> detalhes;
 
   static const double _imagemLado = 48;
 
@@ -41,10 +54,14 @@ class ProductCard extends StatelessWidget {
                       'Estoque: ${produto.estoqueAtual}',
                       style: AppTextStyles.body,
                     ),
+                    ...detalhes,
                   ],
                 ),
               ),
-              if (produto.estoqueBaixo) ...[
+              if (selo case final selo?) ...[
+                const SizedBox(width: AppSpacing.sm),
+                selo,
+              ] else if (produto.estoqueBaixo) ...[
                 const SizedBox(width: AppSpacing.sm),
                 const _BadgeEstoqueBaixo(),
               ],
