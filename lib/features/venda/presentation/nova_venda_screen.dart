@@ -171,6 +171,7 @@ class _NovaVendaScreenState extends ConsumerState<NovaVendaScreen> {
         total: venda.total,
         unidades: venda.unidades,
         descricaoPagamento: _descricaoPagamento(venda),
+        avisoEstoque: venda.avisoEstoque,
         finalizando: _finalizando,
         onFinalizar: _finalizar,
       ),

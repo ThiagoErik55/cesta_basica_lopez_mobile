@@ -1,6 +1,7 @@
 import 'package:cesta_basica_lopez_mobile/core/domain/enums.dart';
 import 'package:cesta_basica_lopez_mobile/features/estoque/data/movimento_estoque_model.dart';
 import 'package:cesta_basica_lopez_mobile/features/estoque/domain/controle_estoque.dart';
+import 'package:cesta_basica_lopez_mobile/features/estoque/presentation/detalhe_estoque_sheet.dart';
 import 'package:cesta_basica_lopez_mobile/features/estoque/presentation/estoque_providers.dart';
 import 'package:cesta_basica_lopez_mobile/features/estoque/presentation/estoque_screen.dart';
 import 'package:cesta_basica_lopez_mobile/features/produto/data/produto_model.dart';
@@ -102,8 +103,9 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
-  testWidgets('detalhe lista movimentações e deixa "Registrar entrada" '
-      'desabilitado', (tester) async {
+  testWidgets('detalhe lista movimentações e liga "Registrar entrada"', (
+    tester,
+  ) async {
     await _abrir(
       tester,
       itens: Stream.value(montarItensEstoque([_p('a', 'Arroz', 50)])),
@@ -129,7 +131,7 @@ void main() {
     expect(find.text('Entrada'), findsOneWidget);
     expect(find.text('+30'), findsOneWidget);
     final botao = tester.widget<OutlinedButton>(find.byType(OutlinedButton));
-    expect(botao.onPressed, isNull);
+    expect(botao.onPressed, isNotNull);
   });
 
   testWidgets('detalhe sem movimentações mostra EmptyState', (tester) async {
@@ -141,5 +143,32 @@ void main() {
     await tester.tap(find.text('Arroz'));
     await tester.pumpAndSettle();
     expect(find.text('Nenhuma movimentação'), findsOneWidget);
+  });
+
+  testWidgets('detalhe sem a ação de entrada deixa o botão desabilitado', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          movimentosDoProdutoProvider.overrideWith(
+            (ref, id) => Stream.value(const []),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: DetalheEstoqueSheet(
+              item: montarItensEstoque([_p('a', 'Arroz', 50)]).single,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final botao = tester.widget<OutlinedButton>(find.byType(OutlinedButton));
+    expect(botao.onPressed, isNull);
   });
 }

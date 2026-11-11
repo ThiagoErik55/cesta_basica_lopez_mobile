@@ -17,9 +17,8 @@ import 'selo_situacao_estoque.dart';
 /// Abre o detalhe do produto no estoque: dados e histórico de
 /// movimentações.
 ///
-/// [aoRegistrarEntrada] é o ponto de extensão da KAN-42: enquanto for
-/// `null`, o botão "Registrar entrada" aparece desabilitado. A KAN-42 só
-/// precisa passar a ação aqui.
+/// [aoRegistrarEntrada] liga o botão "Registrar entrada" (KAN-42); sem
+/// ele, o botão aparece desabilitado.
 Future<void> mostrarDetalheEstoque(
   BuildContext context,
   ItemEstoque item, {
@@ -44,7 +43,16 @@ class DetalheEstoqueSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final p = item.produto;
+    // Acompanha o produto em tempo real (uma entrada muda o saldo e a
+    // situação com o detalhe aberto); sem ele na lista, usa o recebido.
+    final atual =
+        ref
+            .watch(itensEstoqueProvider)
+            .value
+            ?.where((i) => i.produto.id == item.produto.id)
+            .firstOrNull ??
+        item;
+    final p = atual.produto;
     final movimentos = ref.watch(movimentosDoProdutoProvider(p.id));
 
     return DraggableScrollableSheet(
@@ -60,7 +68,7 @@ class DetalheEstoqueSheet extends ConsumerWidget {
             children: [
               Expanded(child: Text(p.nome, style: AppTextStyles.screenTitle)),
               const SizedBox(width: AppSpacing.sm),
-              SeloSituacaoEstoque(item),
+              SeloSituacaoEstoque(atual),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -78,29 +86,24 @@ class DetalheEstoqueSheet extends ConsumerWidget {
                   _Linha(
                     'Estoque atual',
                     '${p.estoqueAtual}',
-                    destaque: item.negativo,
+                    destaque: atual.negativo,
                   ),
                   _Linha('Estoque mínimo', '${p.estoqueMinimo}'),
                   _Linha('Preço', formatarMoeda(p.preco)),
                   _Linha('Custo atual', formatarMoeda(p.custoAtual)),
                   _Linha(
                     'Valor em estoque',
-                    formatarMoeda(item.valorEmEstoque),
+                    formatarMoeda(atual.valorEmEstoque),
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          // KAN-42 liga este botão passando [aoRegistrarEntrada].
           OutlinedButton.icon(
             onPressed: aoRegistrarEntrada,
             icon: const Icon(Icons.add),
-            label: Text(
-              aoRegistrarEntrada == null
-                  ? 'Registrar entrada (em breve)'
-                  : 'Registrar entrada',
-            ),
+            label: const Text('Registrar entrada'),
           ),
           const SizedBox(height: AppSpacing.lg),
           const SectionHeader(titulo: 'Movimentações'),

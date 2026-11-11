@@ -9,6 +9,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/filter_chip_bar.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../produto/data/produto_model.dart';
+import '../domain/estoque_venda.dart';
 import 'nova_venda_providers.dart';
 import 'seletor_quantidade.dart';
 
@@ -125,7 +126,15 @@ class _ProdutoVendaCard extends ConsumerWidget {
       novaVendaProvider.select((v) => v.quantidadeDe(produto.id)),
     );
     final notifier = ref.read(novaVendaProvider.notifier);
-    final semEstoque = quantidade > produto.estoqueAtual;
+    // Item acima do estoque registrado: "Estoque: X · faltam Y".
+    final acima = quantidade > produto.estoqueAtual
+        ? ItemAcimaDoEstoque(
+            produtoId: produto.id,
+            nome: produto.nome,
+            quantidade: quantidade,
+            estoque: produto.estoqueAtual,
+          )
+        : null;
 
     return Card(
       child: Padding(
@@ -145,19 +154,20 @@ class _ProdutoVendaCard extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'Estoque: ${produto.estoqueAtual}',
-                    style: AppTextStyles.caption.copyWith(
-                      color: produto.estoqueBaixo
-                          ? AppColors.statusAtencao
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                  if (semEstoque)
+                  if (acima != null)
                     Text(
-                      'Acima do estoque registrado',
+                      textoFaltaEstoque(acima),
                       style: AppTextStyles.caption.copyWith(
                         color: AppColors.statusInadimplente,
+                      ),
+                    )
+                  else
+                    Text(
+                      'Estoque: ${produto.estoqueAtual}',
+                      style: AppTextStyles.caption.copyWith(
+                        color: produto.estoqueBaixo
+                            ? AppColors.statusAtencao
+                            : AppColors.textSecondary,
                       ),
                     ),
                 ],

@@ -14,6 +14,7 @@ class RodapeVenda extends StatelessWidget {
     required this.total,
     required this.unidades,
     this.descricaoPagamento,
+    this.avisoEstoque,
     this.finalizando = false,
     this.onFinalizar,
     super.key,
@@ -24,12 +25,16 @@ class RodapeVenda extends StatelessWidget {
 
   /// Ex. "Pix" ou "Parcelado em 3x". `null` enquanto não escolhido.
   final String? descricaoPagamento;
+
+  /// Aviso único de itens acima do estoque registrado (KAN-43).
+  final String? avisoEstoque;
   final bool finalizando;
   final VoidCallback? onFinalizar;
 
   @override
   Widget build(BuildContext context) {
     final pagamento = descricaoPagamento;
+    final aviso = avisoEstoque;
 
     return Container(
       decoration: const BoxDecoration(
@@ -43,6 +48,20 @@ class RodapeVenda extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (aviso != null) ...[
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      size: 18,
+                      color: AppColors.statusAtencao,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(child: Text(aviso, style: AppTextStyles.caption)),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
               Row(
                 children: [
                   Expanded(
