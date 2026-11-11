@@ -13,6 +13,9 @@ class MovimentoEstoqueModel implements EntidadeBase {
   final String vendedorUid;
   final double?
   custoUnitario; // custo de aquisição (entrada) ou do item (saída em venda)
+
+  /// Anotação opcional da entrada (fornecedor, nº da nota de compra...).
+  final String? observacao;
   @override
   final DateTime updatedAt;
   @override
@@ -27,6 +30,7 @@ class MovimentoEstoqueModel implements EntidadeBase {
     required this.data,
     required this.vendedorUid,
     this.custoUnitario,
+    this.observacao,
     required this.updatedAt,
     this.deleted = false,
   });
@@ -44,6 +48,8 @@ class MovimentoEstoqueModel implements EntidadeBase {
     'data': data.toIso8601String(),
     'vendedorUid': vendedorUid,
     'custoUnitario': custoUnitario,
+    // Só grava quando existe: movimentos sem observação ficam como antes.
+    if (observacao != null) 'observacao': observacao,
     'updatedAt': updatedAt.toIso8601String(),
     'deleted': deleted,
   };
@@ -58,6 +64,7 @@ class MovimentoEstoqueModel implements EntidadeBase {
         data: lerData(map['data']),
         vendedorUid: map['vendedorUid'] as String? ?? '',
         custoUnitario: lerDoubleOpcional(map['custoUnitario']),
+        observacao: map['observacao'] as String?,
         updatedAt: lerData(map['updatedAt']),
         deleted: map['deleted'] as bool? ?? false,
       );
