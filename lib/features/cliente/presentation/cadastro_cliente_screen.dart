@@ -42,6 +42,10 @@ class CadastroClienteScreen extends ConsumerWidget {
         ),
       );
       navigator.pop();
+    } on StateError catch (e) {
+      // Ex.: a rota escolhida foi excluída enquanto o formulário estava
+      // aberto (KAN-46).
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       messenger.showSnackBar(
         const SnackBar(
