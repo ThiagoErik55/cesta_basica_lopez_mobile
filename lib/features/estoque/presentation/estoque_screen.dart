@@ -14,6 +14,7 @@ import '../../../core/widgets/product_card.dart';
 import '../domain/controle_estoque.dart';
 import 'detalhe_estoque_sheet.dart';
 import 'estoque_providers.dart';
+import 'registrar_entrada_sheet.dart';
 import 'selo_situacao_estoque.dart';
 
 /// Controle de estoque (KAN-41): consulta do estoque dos produtos, em
@@ -67,6 +68,14 @@ class _EstoqueScreenState extends ConsumerState<EstoqueScreen> {
             child: Center(child: ConnectionBadge()),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'registrarEntrada',
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.textoContrastante(AppColors.primary),
+        onPressed: () => registrarEntradaSheet(context),
+        icon: const Icon(Icons.add),
+        label: const Text('Registrar entrada'),
       ),
       body: itens.when(
         data: _conteudo,
@@ -181,7 +190,8 @@ class _EstoqueScreenState extends ConsumerState<EstoqueScreen> {
                     AppSpacing.md,
                     AppSpacing.sm,
                     AppSpacing.md,
-                    AppSpacing.lg,
+                    // Espaço para o botão não cobrir o último card.
+                    AppSpacing.xl * 3,
                   ),
                   itemCount: itens.length,
                   separatorBuilder: (_, _) =>
@@ -272,7 +282,13 @@ class _CardEstoque extends StatelessWidget {
     return ProductCard(
       produto: p,
       selo: SeloSituacaoEstoque(item),
-      onTap: () => mostrarDetalheEstoque(context, item),
+      onTap: () => mostrarDetalheEstoque(
+        context,
+        item,
+        // Liga o ponto de extensão deixado pela KAN-41.
+        aoRegistrarEntrada: () =>
+            registrarEntradaSheet(context, produtoId: p.id),
+      ),
       detalhes: [
         const SizedBox(height: AppSpacing.xs),
         Text(
