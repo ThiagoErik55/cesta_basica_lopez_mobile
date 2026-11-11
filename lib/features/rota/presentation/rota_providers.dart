@@ -7,6 +7,7 @@ import '../../../core/utils/stream_com_cache.dart';
 import '../../cliente/data/cliente_model.dart';
 import '../data/rota_model.dart';
 import '../data/rota_repository.dart';
+import '../domain/associacao_rota.dart';
 import '../domain/cadastro_rota.dart';
 
 /// Rotas ativas em tempo real. Sem retentativa automática: o Riverpod 3
@@ -44,6 +45,14 @@ final itensRotaProvider = Provider.autoDispose<AsyncValue<List<ItemRota>>>((
   final rotas = ref.watch(rotasAtivasProvider);
   final clientes = ref.watch(clientesDasRotasProvider).value;
   return rotas.whenData((r) => montarItensRota(r, clientes));
+});
+
+/// `id → nome` das rotas ativas, para mostrar o nome da rota de um
+/// cliente. Vazio enquanto as rotas carregam ou se falharem: sem nome, a
+/// tela simplesmente não mostra a rota (não quebra).
+final nomesDasRotasProvider = Provider.autoDispose<Map<String, String>>((ref) {
+  final rotas = ref.watch(rotasAtivasProvider).value ?? const [];
+  return {for (final r in rotas) r.id: r.nome};
 });
 
 /// Termo de busca da lista de rotas (já com debounce da tela).
@@ -140,6 +149,66 @@ class SalvarRotaNotifier extends AsyncNotifier<void> {
     );
     if (erro != null) throw StateError(erro);
     return limparNomeRota(nome);
+  }
+
+  Future<bool> _escrever(Future<void> Function() escrita) async {
+    state = const AsyncLoading();
+    try {
+      final sincronizado = await escrita()
+          .then((_) => true)
+          .timeout(_esperaConfirmacao, onTimeout: () => false);
+      state = const AsyncData(null);
+      return sincronizado;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
+  }
+}
+
+/// Associação de clientes a rotas (KAN-46). O estado expõe o
+/// carregamento e o erro da última gravação para a tela.
+final associarClientesProvider =
+    AsyncNotifierProvider.autoDispose<AssociarClientesNotifier, void>(
+      AssociarClientesNotifier.new,
+    );
+
+class AssociarClientesNotifier extends AsyncNotifier<void> {
+  /// Mesma espera de confirmação do cadastro de rota: offline, a escrita
+  /// fica na fila local e a tela não pode esperar por ela.
+  static const _esperaConfirmacao = Duration(seconds: 3);
+
+  @override
+  FutureOr<void> build() {}
+
+  /// Aplica o [diff] do sheet à rota [rotaId]: grava só os clientes que
+  /// mudaram (update parcial de `rotaId` e `updatedAt`). Sem mudanças,
+  /// não grava nada. Lança [StateError] se a rota deixou de existir;
+  /// devolve se o servidor confirmou (`false` = salvo no aparelho).
+  Future<bool> aplicar(String rotaId, DiffAssociacao diff) async {
+    _exigirRotaAtiva(rotaId);
+    if (diff.semMudancas) return true;
+    return _escrever(
+      () => ref
+          .read(rotaRepositoryProvider)
+          .atribuirRotas(diff.novasRotas(rotaId)),
+    );
+  }
+
+  /// Define (ou tira, com `null`) a rota de um único cliente: usado pelo
+  /// detalhe do cliente.
+  Future<bool> definirRotaDoCliente(String clienteId, String? rotaId) async {
+    if (rotaId != null) _exigirRotaAtiva(rotaId);
+    return _escrever(
+      () => ref.read(rotaRepositoryProvider).atribuirRotas({clienteId: rotaId}),
+    );
+  }
+
+  void _exigirRotaAtiva(String rotaId) {
+    final rotas = ref.read(rotasAtivasProvider).value;
+    if (rotas == null || rotaValida(rotaId, rotas) == null) {
+      throw StateError('Esta rota não existe mais.');
+    }
   }
 
   Future<bool> _escrever(Future<void> Function() escrita) async {

@@ -5,6 +5,7 @@ import 'package:cesta_basica_lopez_mobile/core/utils/stream_com_cache.dart';
 import 'package:cesta_basica_lopez_mobile/features/cliente/data/cliente_model.dart';
 import 'package:cesta_basica_lopez_mobile/features/rota/data/rota_model.dart';
 import 'package:cesta_basica_lopez_mobile/features/rota/data/rota_repository.dart';
+import 'package:cesta_basica_lopez_mobile/features/rota/domain/associacao_rota.dart';
 import 'package:cesta_basica_lopez_mobile/features/rota/domain/cadastro_rota.dart';
 import 'package:cesta_basica_lopez_mobile/features/rota/presentation/rota_providers.dart';
 import 'package:fake_async/fake_async.dart';
@@ -22,14 +23,14 @@ RotaModel _rota(String id, String nome) => RotaModel(
   updatedAt: _t,
 );
 
-ClienteModel _cliente(String id, String rotaId) => ClienteModel(
+ClienteModel _cliente(String id, String? rotaId) => ClienteModel(
   id: id,
   codigo: 'C-$id',
   nome: 'Cliente $id',
   cpf: '00000000000',
   telefone: '',
   endereco: '',
-  rotaId: rotaId,
+  rotaId: rotaId == '' ? null : rotaId,
   updatedAt: _t,
 );
 
@@ -339,6 +340,75 @@ void main() {
         ),
       );
       expect((await doc('r1'))!['deleted'], false);
+    });
+  });
+
+  _grupoAssociacao();
+}
+
+void _grupoAssociacao() {
+  group('AssociarClientesNotifier (com Firestore falso)', () {
+    late FakeFirebaseFirestore db;
+    late ProviderContainer c;
+
+    setUp(() async {
+      db = FakeFirebaseFirestore();
+      c = _container(RotaRepository(db));
+      await db.collection('rotas').doc('a').set(_rota('a', 'Centro').toMap());
+      for (final id in ['1', '2', '3']) {
+        await db.collection('clientes').doc(id).set(_cliente(id, '').toMap());
+      }
+      c.listen(rotasAtivasProvider, (_, _) {});
+      c.listen(clientesDasRotasProvider, (_, _) {});
+      await c.read(rotasAtivasProvider.future);
+      await c.read(clientesDasRotasProvider.future);
+    });
+
+    Future<Map<String, dynamic>> doc(String id) async =>
+        (await db.collection('clientes').doc(id).get()).data()!;
+
+    test('aplica o diff: grava só os que mudaram', () async {
+      final antes3 = await doc('3');
+      final sincronizado = await c
+          .read(associarClientesProvider.notifier)
+          .aplicar('a', const DiffAssociacao(adicionados: ['1', '2']));
+
+      expect(sincronizado, isTrue);
+      expect((await doc('1'))['rotaId'], 'a');
+      expect((await doc('2'))['rotaId'], 'a');
+      expect(await doc('3'), antes3);
+    });
+
+    test('sem mudanças não grava', () async {
+      final antes = await doc('1');
+      await c
+          .read(associarClientesProvider.notifier)
+          .aplicar('a', const DiffAssociacao(inalterados: ['1']));
+      expect(await doc('1'), antes);
+    });
+
+    test('rota excluída ou inexistente é recusada, sem gravar', () async {
+      await expectLater(
+        c
+            .read(associarClientesProvider.notifier)
+            .aplicar('fantasma', const DiffAssociacao(adicionados: ['1'])),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'Esta rota não existe mais.',
+          ),
+        ),
+      );
+      expect((await doc('1'))['rotaId'], anyOf(isNull, ''));
+    });
+
+    test('definirRotaDoCliente troca e limpa a rota de um cliente', () async {
+      final n = c.read(associarClientesProvider.notifier);
+      await n.definirRotaDoCliente('1', 'a');
+      expect((await doc('1'))['rotaId'], 'a');
+      await n.definirRotaDoCliente('1', null);
+      expect((await doc('1'))['rotaId'], isNull);
     });
   });
 }

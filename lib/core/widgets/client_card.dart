@@ -16,10 +16,20 @@ import 'status_badge.dart';
 /// KAN-35): já considera o bloqueio automático por atraso ou limite, com
 /// o motivo. O card só mostra o badge correspondente.
 class ClientCard extends ConsumerWidget {
-  const ClientCard({required this.cliente, this.onTap, super.key});
+  const ClientCard({
+    required this.cliente,
+    this.onTap,
+    this.rotaNome,
+    super.key,
+  });
 
   final ClienteModel cliente;
   final VoidCallback? onTap;
+
+  /// Nome da rota ativa do cliente (KAN-46), em texto pequeno abaixo do
+  /// endereço. `null` (sem rota, rota excluída ou ainda carregando) não
+  /// mostra nada.
+  final String? rotaNome;
 
   static const double _avatarRaio = 22;
 
@@ -61,6 +71,15 @@ class ClientCard extends ConsumerWidget {
                     Text(cliente.nome, style: AppTextStyles.cardTitle),
                     const SizedBox(height: AppSpacing.xs),
                     Text(cliente.endereco, style: AppTextStyles.cardSubtitle),
+                    if (rotaNome != null) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Rota: $rotaNome',
+                        style: AppTextStyles.caption,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
                 ),
               ),

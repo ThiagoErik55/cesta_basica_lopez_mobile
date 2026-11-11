@@ -12,6 +12,9 @@ import '../../../core/widgets/score_badge.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../core/providers/regra_bloqueio_provider.dart';
+import '../../rota/domain/associacao_rota.dart';
+import '../../rota/presentation/alterar_rota_cliente_sheet.dart';
+import '../../rota/presentation/rota_providers.dart';
 import '../../venda/presentation/promissorias_providers.dart';
 import '../data/cliente_model.dart';
 import '../domain/bloqueio_cliente.dart';
@@ -111,6 +114,20 @@ class _Detalhes extends ConsumerWidget {
     );
   }
 
+  /// Nome da rota ativa do cliente. Rota excluída, inexistente ou texto
+  /// livre antigo aparecem como "Sem rota". Enquanto as rotas carregam (ou
+  /// se falharem) não dá para afirmar "sem rota" de quem tem `rotaId`.
+  String _textoRota(WidgetRef ref) {
+    final semValor = (cliente.rotaId ?? '').isEmpty;
+    return ref
+        .watch(rotasAtivasProvider)
+        .when(
+          data: (rotas) => nomeDaRota(cliente.rotaId, rotas) ?? 'Sem rota',
+          loading: () => semValor ? 'Sem rota' : 'Carregando…',
+          error: (_, _) => semValor ? 'Sem rota' : 'Indisponível',
+        );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final situacao = _situacao(ref);
@@ -148,9 +165,13 @@ class _Detalhes extends ConsumerWidget {
             ('CPF', cliente.cpf),
             ('Telefone', cliente.telefone),
             ('Endereço', cliente.endereco),
-            // rotaId ainda é texto livre (não há cadastro de rotas).
-            ('Rota', cliente.rotaId ?? 'Sem rota'),
+            ('Rota', _textoRota(ref)),
           ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SecondaryButton(
+          texto: 'Alterar rota',
+          onPressed: () => mostrarAlterarRotaDoCliente(context, cliente),
         ),
         const SizedBox(height: AppSpacing.lg),
 

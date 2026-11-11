@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/cpf.dart';
 import '../../../core/utils/mascaras.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../data/cliente_model.dart';
+import '../../rota/domain/associacao_rota.dart';
+import '../../rota/presentation/rota_providers.dart';
+import '../../rota/presentation/seletor_rota.dart';
 import '../domain/dados_cadastrais_cliente.dart';
 
 /// Formulário de dados cadastrais do cliente, compartilhado entre o
@@ -12,7 +16,7 @@ import '../domain/dados_cadastrais_cliente.dart';
 /// campos obrigatórios ficam num lugar só.
 ///
 /// Com [inicial], os campos já vêm preenchidos com os dados do cliente.
-class ClienteForm extends StatefulWidget {
+class ClienteForm extends ConsumerStatefulWidget {
   const ClienteForm({
     required this.textoBotao,
     required this.salvando,
@@ -27,10 +31,10 @@ class ClienteForm extends StatefulWidget {
   final ValueChanged<DadosCadastraisCliente> onSalvar;
 
   @override
-  State<ClienteForm> createState() => _ClienteFormState();
+  ConsumerState<ClienteForm> createState() => _ClienteFormState();
 }
 
-class _ClienteFormState extends State<ClienteForm> {
+class _ClienteFormState extends ConsumerState<ClienteForm> {
   final _formKey = GlobalKey<FormState>();
   late final _nome = TextEditingController(text: widget.inicial?.nome);
   // O CPF e o telefone já são gravados com máscara, então entram no
@@ -38,7 +42,8 @@ class _ClienteFormState extends State<ClienteForm> {
   late final _cpf = TextEditingController(text: widget.inicial?.cpf);
   late final _telefone = TextEditingController(text: widget.inicial?.telefone);
   late final _endereco = TextEditingController(text: widget.inicial?.endereco);
-  late final _rota = TextEditingController(text: widget.inicial?.rotaId);
+  // Valor cru do cliente; o seletor só o mostra se é de uma rota ativa.
+  late String? _rotaId = widget.inicial?.rotaId;
 
   @override
   void dispose() {
@@ -46,20 +51,23 @@ class _ClienteFormState extends State<ClienteForm> {
     _cpf.dispose();
     _telefone.dispose();
     _endereco.dispose();
-    _rota.dispose();
     super.dispose();
   }
 
   void _salvar() {
     if (widget.salvando || !_formKey.currentState!.validate()) return;
-    final rota = _rota.text.trim();
+    // Com as rotas carregadas, só vale rota ativa (texto livre antigo ou
+    // rota excluída viram "sem rota"). Sem elas (carregando ou erro), o
+    // seletor está desabilitado e o valor original é mantido.
+    final rotas = ref.read(rotasAtivasProvider).value;
+    final rotaId = rotas == null ? _rotaId : rotaValida(_rotaId, rotas);
     widget.onSalvar(
       DadosCadastraisCliente(
         nome: _nome.text.trim(),
         cpf: _cpf.text,
         telefone: _telefone.text,
         endereco: _endereco.text.trim(),
-        rotaId: rota.isEmpty ? null : rota,
+        rotaId: rotaId,
       ),
     );
   }
@@ -120,18 +128,10 @@ class _ClienteFormState extends State<ClienteForm> {
             validator: (v) => _obrigatorio(v, 'Informe o endereço.'),
           ),
           const SizedBox(height: AppSpacing.md),
-          // LIMITAÇÃO: ainda não há tela nem repositório de rotas, então
-          // a rota é um texto livre e opcional gravado direto em rotaId.
-          // Quando o CRUD de rotas existir, trocar por um dropdown
-          // alimentado pelo repositório de rotas (que grava o UUID).
-          TextFormField(
-            controller: _rota,
-            decoration: const InputDecoration(
-              labelText: 'Rota (opcional)',
-              helperText: 'Texto livre até o cadastro de rotas existir.',
-            ),
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _salvar(),
+          // Rotas reais do cadastro (KAN-45/46); grava o id da rota.
+          SeletorRota(
+            rotaId: _rotaId,
+            onChanged: (v) => setState(() => _rotaId = v),
           ),
           const SizedBox(height: AppSpacing.lg),
           PrimaryButton(

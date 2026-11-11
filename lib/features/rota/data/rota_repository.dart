@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/domain/enums.dart';
 import '../../../core/providers/firebase_providers.dart';
 import '../../cliente/data/cliente_model.dart';
+import '../domain/associacao_rota.dart';
 import 'rota_model.dart';
 
 /// Acesso às rotas (KAN-45). Escritas em um único documento: o `set` com
@@ -41,6 +42,46 @@ class RotaRepository {
     'deleted': true,
     'updatedAt': (agora ?? DateTime.now()).toIso8601String(),
   });
+
+  /// Define a rota de vários clientes (KAN-46): `clienteId → rotaId`, com
+  /// `null` para tirar o cliente da rota.
+  ///
+  /// Cada cliente recebe um **update parcial** de `rotaId` e `updatedAt`;
+  /// nenhum outro campo é regravado, então não há como sobrescrever, por
+  /// exemplo, o crédito ou o valor em aberto que mudaram em outro
+  /// aparelho. Quem chama deve passar só os clientes que realmente
+  /// mudaram: mapa vazio não grava nada.
+  ///
+  /// As escritas vão em batches de até [tamanhoLote] operações (padrão
+  /// [limiteOperacoesPorLote]). Os batches são todos enviados de uma vez,
+  /// **sem esperar um confirmar antes de criar o próximo**: offline, um
+  /// batch só completa quando a conexão volta, e esperar por ele
+  /// impediria os demais de entrarem na fila local. Cada batch é atômico;
+  /// entre batches, não (só importa acima de [tamanhoLote] clientes).
+  Future<void> atribuirRotas(
+    Map<String, String?> novasRotas, {
+    DateTime? agora,
+    int tamanhoLote = limiteOperacoesPorLote,
+  }) {
+    if (novasRotas.isEmpty) return Future.value();
+    final instante = (agora ?? DateTime.now()).toIso8601String();
+
+    final commits = <Future<void>>[];
+    for (final lote in dividirEmLotes(
+      novasRotas.entries.toList(),
+      tamanho: tamanhoLote,
+    )) {
+      final batch = _db.batch();
+      for (final e in lote) {
+        batch.update(_clientes.doc(e.key), {
+          'rotaId': e.value,
+          'updatedAt': instante,
+        });
+      }
+      commits.add(batch.commit());
+    }
+    return Future.wait(commits).then((_) {});
+  }
 
   /// Rotas ativas em tempo real. Lê a coleção inteira e ignora as
   /// excluídas em memória: sem índice composto (poucas rotas).

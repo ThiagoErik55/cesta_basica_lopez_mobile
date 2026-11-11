@@ -243,7 +243,7 @@ void main() {
     );
 
     testWidgets('detalhe mostra dados, clientes em ordem e o botão '
-        'Associar desabilitado', (tester) async {
+        'Associar ligado (KAN-46)', (tester) async {
       await _abrir(tester, semente: semente);
       await tester.tap(find.text('Centro'));
       await tester.pumpAndSettle();
@@ -256,7 +256,7 @@ void main() {
       final associar = tester.widget<OutlinedButton>(
         find.widgetWithText(OutlinedButton, 'Associar clientes'),
       );
-      expect(associar.onPressed, isNull);
+      expect(associar.onPressed, isNotNull);
     });
 
     testWidgets('rota sem clientes mostra o EmptyState de clientes', (
