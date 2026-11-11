@@ -12,6 +12,7 @@ class EmptyState extends StatelessWidget {
     required this.titulo,
     required this.descricao,
     this.acao,
+    this.compacto = false,
     super.key,
   });
 
@@ -20,17 +21,26 @@ class EmptyState extends StatelessWidget {
   final String descricao;
   final Widget? acao;
 
+  /// Versão menor, para caber dentro de um bloco (ícone pequeno e pouco
+  /// espaço em volta).
+  final bool compacto;
+
   static const double _tamanhoIcone = AppSpacing.xl * 2;
+  static const double _tamanhoIconeCompacto = AppSpacing.lg;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      padding: EdgeInsets.all(compacto ? AppSpacing.md : AppSpacing.xl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icone, size: _tamanhoIcone, color: AppColors.textSecondary),
-          const SizedBox(height: AppSpacing.md),
+          Icon(
+            icone,
+            size: compacto ? _tamanhoIconeCompacto : _tamanhoIcone,
+            color: AppColors.textSecondary,
+          ),
+          SizedBox(height: compacto ? AppSpacing.sm : AppSpacing.md),
           Text(
             titulo,
             style: AppTextStyles.sectionTitle,

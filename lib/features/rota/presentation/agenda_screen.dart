@@ -4,18 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/navigation/app_routes.dart';
-import '../../../core/services/discador.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatadores.dart';
-import '../../../core/utils/ligacao.dart';
 import '../../../core/widgets/client_card.dart';
 import '../../../core/widgets/connection_badge.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/filter_chip_bar.dart';
 import '../../auth/presentation/logout_button.dart';
 import '../domain/agenda_vendedor.dart';
+import 'acoes_rapidas_cliente.dart';
 import 'agenda_providers.dart';
 
 /// Aba de agenda do vendedor (RF08, RF09, KAN-47): o vendedor escolhe uma
@@ -81,16 +80,6 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
     );
     if (escolhida != null && mounted) {
       ref.read(selecaoAgendaProvider.notifier).escolherData(escolhida);
-    }
-  }
-
-  Future<void> _ligar(Uri uri) async {
-    final mensageiro = ScaffoldMessenger.of(context);
-    final ok = await ref.read(discadorProvider).ligar(uri);
-    if (!ok) {
-      mensageiro.showSnackBar(
-        const SnackBar(content: Text('Não foi possível abrir o discador.')),
-      );
     }
   }
 
@@ -293,7 +282,6 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
             ),
             child: _CartaoAgenda(
               item: item,
-              aoLigar: _ligar,
               aoMarcarVisitaRealizada: widget.aoMarcarVisitaRealizada,
             ),
           ),
@@ -454,18 +442,15 @@ class _Total extends StatelessWidget {
 class _CartaoAgenda extends StatelessWidget {
   const _CartaoAgenda({
     required this.item,
-    required this.aoLigar,
     required this.aoMarcarVisitaRealizada,
   });
 
   final ItemAgenda item;
-  final ValueChanged<Uri> aoLigar;
   final ValueChanged<ItemAgenda>? aoMarcarVisitaRealizada;
 
   @override
   Widget build(BuildContext context) {
     final c = item.cliente;
-    final ligacao = uriDeLigacao(c.telefone);
     final destaques = destaquesDaAgenda(item);
     void abrirDetalhe() =>
         Navigator.of(context)
@@ -510,29 +495,9 @@ class _CartaoAgenda extends StatelessWidget {
       ],
       rodape: Padding(
         padding: const EdgeInsets.only(top: AppSpacing.sm),
-        child: Wrap(
-          alignment: WrapAlignment.end,
-          spacing: AppSpacing.xs,
-          children: [
-            TextButton.icon(
-              onPressed: abrirDetalhe,
-              icon: const Icon(Icons.person_outline),
-              label: const Text('Detalhes'),
-            ),
-            TextButton.icon(
-              // Abre a nova venda com este cliente já selecionado.
-              onPressed: () =>
-                  Navigator.of(context)
-                      .pushNamed(AppRoutes.novaVenda, arguments: c.id),
-              icon: const Icon(Icons.shopping_cart_outlined),
-              label: const Text('Nova venda'),
-            ),
-            if (ligacao != null)
-              TextButton.icon(
-                onPressed: () => aoLigar(ligacao),
-                icon: const Icon(Icons.call_outlined),
-                label: const Text('Ligar'),
-              ),
+        child: AcoesRapidasCliente(
+          cliente: c,
+          extras: [
             if (aoMarcarVisitaRealizada != null)
               TextButton.icon(
                 onPressed: () => aoMarcarVisitaRealizada!(item),
