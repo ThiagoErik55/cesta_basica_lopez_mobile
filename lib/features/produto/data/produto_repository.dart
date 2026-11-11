@@ -20,6 +20,23 @@ class ProdutoRepository {
       .snapshots()
       .map((s) => s.docs.map((d) => ProdutoModel.fromMap(d.data())).toList());
 
+  /// Todos os produtos ativos, em tempo real (tela de estoque, KAN-41).
+  ///
+  /// Lê a coleção inteira e aplica a exclusão lógica em memória: assim a
+  /// consulta não depende de índice composto (o catálogo é pequeno).
+  Stream<List<ProdutoModel>> observarAtivos() => _col.snapshots().map(_ativos);
+
+  /// Produtos ativos só do cache local, para quando o servidor não
+  /// responde a tempo.
+  Future<List<ProdutoModel>> ativosEmCache() async =>
+      _ativos(await _col.get(const GetOptions(source: Source.cache)));
+
+  List<ProdutoModel> _ativos(QuerySnapshot<Map<String, dynamic>> s) => [
+    for (final d in s.docs)
+      if (!ProdutoModel.fromMap(d.data()).deleted)
+        ProdutoModel.fromMap(d.data()),
+  ];
+
   Stream<List<ProdutoModel>> observarPorCategoria(String categoria) => _col
       .where('deleted', isEqualTo: false)
       .where('categoria', isEqualTo: categoria)

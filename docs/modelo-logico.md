@@ -2,7 +2,7 @@
 
 **Projeto:** Sistema de Força de Vendas — Cesta Básica Lopez
 **Projeto Integrador III — Faculdade Donaduzzi — Grupo 01**
-**Versão:** 1.5 · Sprint 5
+**Versão:** 1.6 · Sprint 6
 **Referência:** Levantamento de Requisitos v01, ADR 001, ADR 002
 
 ---
@@ -129,6 +129,7 @@ erDiagram
     int quantidade
     decimal custoUnitario
     datetime data
+    string observacao
   }
   DESPESA {
     uuid id PK
@@ -271,6 +272,7 @@ erDiagram
     int quantidade
     decimal custoUnitario
     datetime data
+    string observacao
   }
   DESPESA {
     uuid id PK
@@ -447,6 +449,7 @@ Entrada, saída ou troca de produto (RF22, RF23, RF25).
 | custoUnitario | decimal | Custo de aquisição, preenchido nos movimentos de entrada |
 | data | datetime | Momento do movimento |
 | vendedorUid | string | FK para USUARIO, registra quem lançou o movimento (seção 6) |
+| observacao | string | Opcional. Anotação do vendedor sobre a entrada, ex. fornecedor ou nº da nota de compra (KAN-42). Ausente nos demais movimentos |
 
 ### DESPESA
 Gasto lançado pelo vendedor, ex. combustível (RF27, RF29).
@@ -619,3 +622,4 @@ As entidades CLIENTE e VENDA armazenam dados pessoais (CPF, endereço, telefone 
 | 09/11/2026 | 1.3 | Alteração do valor de parcela (KAN-32): atributo `alteracoes` acrescentado a PARCELA como estrutura embutida; operação "Alterar valor de parcela" incluída entre as escritas em lote. |
 | 09/11/2026 | 1.4 | Registro de pagamento e histórico financeiro (KAN-33): atributo `observacao` acrescentado a PAGAMENTO; esclarecido o vínculo do pagamento com venda e cliente por meio dos documentos que o contêm; operação "Quitar parcela" renomeada para "Registrar pagamento de parcela", que também cobre pagamento parcial. |
 | 10/11/2026 | 1.5 | Assinatura digital (KAN-38): atributo `assinadaEm` acrescentado a VENDA; `assinaturaBase64` passa a ter formato definido (PNG, até 600 px) e a ser sobrescrita ao refazer. |
+| 11/11/2026 | 1.6 | Entrada de estoque (KAN-42): atributo `observacao` (opcional) acrescentado a MOVIMENTO_ESTOQUE; a entrada atualiza `PRODUTO.custoAtual` com o custo da última compra (sem custo médio) e soma `estoqueAtual` com incremento. |

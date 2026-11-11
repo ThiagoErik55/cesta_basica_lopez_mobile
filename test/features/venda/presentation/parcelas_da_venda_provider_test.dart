@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
 
+import 'package:cesta_basica_lopez_mobile/core/utils/stream_com_cache.dart';
 import 'package:cesta_basica_lopez_mobile/features/venda/data/parcela_model.dart';
 import 'package:cesta_basica_lopez_mobile/features/venda/data/venda_repository.dart';
 import 'package:cesta_basica_lopez_mobile/features/venda/presentation/pos_venda_providers.dart';

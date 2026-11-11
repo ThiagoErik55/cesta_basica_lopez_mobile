@@ -16,10 +16,34 @@ import 'status_badge.dart';
 /// KAN-35): já considera o bloqueio automático por atraso ou limite, com
 /// o motivo. O card só mostra o badge correspondente.
 class ClientCard extends ConsumerWidget {
-  const ClientCard({required this.cliente, this.onTap, super.key});
+  const ClientCard({
+    required this.cliente,
+    this.onTap,
+    this.rotaNome,
+    this.detalhes = const [],
+    this.rodape,
+    this.situacao,
+    super.key,
+  });
 
   final ClienteModel cliente;
   final VoidCallback? onTap;
+
+  /// Nome da rota ativa do cliente (KAN-46), em texto pequeno abaixo do
+  /// endereço. `null` (sem rota, rota excluída ou ainda carregando) não
+  /// mostra nada.
+  final String? rotaNome;
+
+  /// Linhas extras abaixo do endereço e da rota (ex. valores e destaques
+  /// da agenda, KAN-47).
+  final List<Widget> detalhes;
+
+  /// Faixa abaixo do cartão, dentro dele (ex. ações rápidas da agenda).
+  final Widget? rodape;
+
+  /// Situação já calculada por quem tem as parcelas (a agenda). Sem ela, o
+  /// card usa o resumo do próprio cliente.
+  final SituacaoCliente? situacao;
 
   static const double _avatarRaio = 22;
 
@@ -28,12 +52,14 @@ class ClientCard extends ConsumerWidget {
     final inicial = cliente.nome.isEmpty ? '?' : cliente.nome[0].toUpperCase();
     final corAvatarTexto = AppColors.textoContrastante(AppColors.primary);
 
-    final situacao = situacaoDoClientePeloResumo(
-      cliente,
-      regra: ref.watch(regraBloqueioProvider),
-    );
-    final statusBadge = StatusBadge.pagamento(situacao.status);
-    final motivo = situacao.motivo;
+    final situacaoExibida =
+        situacao ??
+        situacaoDoClientePeloResumo(
+          cliente,
+          regra: ref.watch(regraBloqueioProvider),
+        );
+    final statusBadge = StatusBadge.pagamento(situacaoExibida.status);
+    final motivo = situacaoExibida.motivo;
 
     return Card(
       child: InkWell(
@@ -41,42 +67,61 @@ class ClientCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              CircleAvatar(
-                radius: _avatarRaio,
-                backgroundColor: AppColors.primary,
-                child: Text(
-                  inicial,
-                  style: AppTextStyles.cardTitle.copyWith(
-                    color: corAvatarTexto,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(cliente.nome, style: AppTextStyles.cardTitle),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(cliente.endereco, style: AppTextStyles.cardSubtitle),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Row(
                 children: [
-                  ScoreBadge(cliente.score),
-                  const SizedBox(height: AppSpacing.xs),
-                  statusBadge,
-                  if (motivo != null) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(motivo, style: AppTextStyles.caption),
-                  ],
+                  CircleAvatar(
+                    radius: _avatarRaio,
+                    backgroundColor: AppColors.primary,
+                    child: Text(
+                      inicial,
+                      style: AppTextStyles.cardTitle.copyWith(
+                        color: corAvatarTexto,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(cliente.nome, style: AppTextStyles.cardTitle),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          cliente.endereco,
+                          style: AppTextStyles.cardSubtitle,
+                        ),
+                        if (rotaNome != null) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Rota: $rotaNome',
+                            style: AppTextStyles.caption,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        ...detalhes,
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      ScoreBadge(cliente.score),
+                      const SizedBox(height: AppSpacing.xs),
+                      statusBadge,
+                      if (motivo != null) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(motivo, style: AppTextStyles.caption),
+                      ],
+                    ],
+                  ),
                 ],
               ),
+              ?rodape,
             ],
           ),
         ),

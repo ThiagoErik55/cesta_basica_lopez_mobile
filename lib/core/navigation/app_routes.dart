@@ -32,6 +32,16 @@ class AppRoutes {
   /// (String) em `arguments`.
   static const String assinatura = '/vendas/assinatura';
 
+  /// Controle de estoque (KAN-41): consulta do estoque dos produtos, com
+  /// o histórico de movimentações. Opcionalmente recebe um
+  /// `EstoqueRotaArgs` em `arguments` (KAN-44) para abrir já filtrada em
+  /// alertas.
+  static const String estoque = '/estoque';
+
+  /// Cadastro de rotas (KAN-45, RF06): lista, criação, edição e exclusão
+  /// lógica. Aberta pelo ícone "Rotas" da aba Agenda.
+  static const String rotas = '/rotas';
+
   /// Cadastro de cliente (RF01), aberto pelo FAB da aba Clientes.
   static const String cadastroCliente = '/clientes/novo';
 

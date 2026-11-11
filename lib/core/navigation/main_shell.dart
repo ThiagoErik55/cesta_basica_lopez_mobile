@@ -5,6 +5,7 @@ import '../../features/cliente/presentation/clientes_screen.dart';
 import '../../features/financeiro/presentation/financeiro_screen.dart';
 import '../../features/produto/presentation/produtos_screen.dart';
 import '../../features/rota/presentation/agenda_screen.dart';
+import '../../features/rota/presentation/recomendados_para_visitar.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
@@ -24,7 +25,8 @@ class MainShell extends ConsumerWidget {
   const MainShell({super.key});
 
   static const List<Widget> _abas = [
-    AgendaScreen(),
+    // O bloco de recomendados (KAN-48) preenche o slot da agenda (KAN-47).
+    AgendaScreen(recomendados: RecomendadosParaVisitar()),
     ClientesScreen(),
     ProdutosScreen(),
     FinanceiroScreen(),

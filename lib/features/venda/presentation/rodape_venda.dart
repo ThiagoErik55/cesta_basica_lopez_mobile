@@ -14,6 +14,8 @@ class RodapeVenda extends StatelessWidget {
     required this.total,
     required this.unidades,
     this.descricaoPagamento,
+    this.avisoEstoque,
+    this.avisosEstoqueBaixo = const [],
     this.finalizando = false,
     this.onFinalizar,
     super.key,
@@ -24,12 +26,20 @@ class RodapeVenda extends StatelessWidget {
 
   /// Ex. "Pix" ou "Parcelado em 3x". `null` enquanto não escolhido.
   final String? descricaoPagamento;
+
+  /// Aviso único de itens acima do estoque registrado (KAN-43).
+  final String? avisoEstoque;
+
+  /// Produtos que ficarão com estoque baixo depois da venda (KAN-44);
+  /// só informativo.
+  final List<String> avisosEstoqueBaixo;
   final bool finalizando;
   final VoidCallback? onFinalizar;
 
   @override
   Widget build(BuildContext context) {
     final pagamento = descricaoPagamento;
+    final aviso = avisoEstoque;
 
     return Container(
       decoration: const BoxDecoration(
@@ -43,6 +53,40 @@ class RodapeVenda extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (aviso != null) ...[
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      size: 18,
+                      color: AppColors.statusAtencao,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(child: Text(aviso, style: AppTextStyles.caption)),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+              if (avisosEstoqueBaixo.isNotEmpty) ...[
+                for (final texto in avisosEstoqueBaixo)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: AppColors.statusAtencao,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Expanded(
+                          child: Text(texto, style: AppTextStyles.caption),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: AppSpacing.xs),
+              ],
               Row(
                 children: [
                   Expanded(
