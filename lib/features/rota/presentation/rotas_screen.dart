@@ -9,6 +9,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/connection_badge.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../domain/cadastro_rota.dart';
+import 'associar_clientes_sheet.dart';
 import 'detalhe_rota_sheet.dart';
 import 'rota_form_sheet.dart';
 import 'rota_providers.dart';
@@ -16,8 +17,9 @@ import 'rota_providers.dart';
 /// Cadastro de rotas (KAN-45, RF06): lista em tempo real, com o cache
 /// offline, busca por nome, criação, edição e exclusão lógica.
 ///
-/// Só o CRUD. Associar clientes (KAN-46), agenda por data (KAN-47) e
-/// recomendação de clientes a visitar (KAN-48) são tarefas à parte.
+/// Associar clientes à rota (KAN-46) abre pelo detalhe da rota. Agenda
+/// por data (KAN-47) e recomendação de clientes a visitar (KAN-48) são
+/// tarefas à parte.
 class RotasScreen extends ConsumerStatefulWidget {
   const RotasScreen({super.key});
 
@@ -170,7 +172,12 @@ class _CardRota extends StatelessWidget {
 
     return Card(
       child: InkWell(
-        onTap: () => mostrarDetalheRota(context, rota.id),
+        onTap: () => mostrarDetalheRota(
+          context,
+          rota.id,
+          // Liga o ponto de extensão deixado pela KAN-45.
+          aoAssociarClientes: () => mostrarAssociarClientes(context, rota.id),
+        ),
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
