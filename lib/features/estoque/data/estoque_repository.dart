@@ -25,6 +25,18 @@ class EstoqueRepository {
                 .toList(),
           );
 
+  /// Movimentos do produto só do cache local, para quando o servidor
+  /// não responde a tempo.
+  Future<List<MovimentoEstoqueModel>> movimentosEmCache(
+    String produtoId,
+  ) async {
+    final s = await _col
+        .where('deleted', isEqualTo: false)
+        .where('produtoId', isEqualTo: produtoId)
+        .get(const GetOptions(source: Source.cache));
+    return [for (final d in s.docs) MovimentoEstoqueModel.fromMap(d.data())];
+  }
+
   /// Saldo derivado dos movimentos — fonte autoritativa (ADR 001).
   Stream<int> observarSaldo(String produtoId) =>
       observarPorProduto(produtoId)
