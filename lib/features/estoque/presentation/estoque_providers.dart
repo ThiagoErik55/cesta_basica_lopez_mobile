@@ -9,11 +9,20 @@ import '../domain/controle_estoque.dart';
 
 /// Filtros da tela de estoque. `null` em situação e categoria = todos.
 class FiltroEstoque {
-  const FiltroEstoque({this.termo = '', this.situacao, this.categoria});
+  const FiltroEstoque({
+    this.termo = '',
+    this.situacao,
+    this.categoria,
+    this.apenasAlertas = false,
+  });
 
   final String termo;
   final SituacaoEstoque? situacao;
   final String? categoria;
+
+  /// Filtro rápido "Alertas" (KAN-44): baixo + sem estoque + negativo.
+  /// Exclui [situacao]: um ou outro.
+  final bool apenasAlertas;
 }
 
 final filtroEstoqueProvider =
@@ -29,6 +38,7 @@ class FiltroEstoqueNotifier extends Notifier<FiltroEstoque> {
     termo: termo,
     situacao: state.situacao,
     categoria: state.categoria,
+    apenasAlertas: state.apenasAlertas,
   );
 
   void filtrarPorSituacao(SituacaoEstoque? situacao) => state = FiltroEstoque(
@@ -37,10 +47,17 @@ class FiltroEstoqueNotifier extends Notifier<FiltroEstoque> {
     categoria: state.categoria,
   );
 
+  void filtrarAlertas() => state = FiltroEstoque(
+    termo: state.termo,
+    categoria: state.categoria,
+    apenasAlertas: true,
+  );
+
   void filtrarPorCategoria(String? categoria) => state = FiltroEstoque(
     termo: state.termo,
     situacao: state.situacao,
     categoria: categoria,
+    apenasAlertas: state.apenasAlertas,
   );
 }
 
@@ -60,6 +77,16 @@ final itensEstoqueProvider = StreamProvider.autoDispose<List<ItemEstoque>>((
   );
   return produtos.map(montarItensEstoque);
 }, retry: (_, _) => null);
+
+/// Quantos produtos estão em alerta (baixo, sem estoque ou negativo),
+/// derivado do mesmo stream da tela Estoque ([itensEstoqueProvider]): não
+/// abre outro listener. Enquanto carrega, ou se der erro, vale 0 — o
+/// badge e a faixa simplesmente não aparecem, sem spinner (KAN-44).
+final contagemAlertasEstoqueProvider = Provider.autoDispose<int>(
+  (ref) => ref
+      .watch(itensEstoqueProvider)
+      .maybeWhen(data: contarAlertas, orElse: () => 0),
+);
 
 /// Movimentações do produto (mais recente primeiro). A consulta filtra só
 /// por igualdade (`deleted` e `produtoId`) e a ordem é feita em memória,

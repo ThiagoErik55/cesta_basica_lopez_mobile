@@ -120,6 +120,11 @@ class NovaVendaState {
   /// permite a venda; `null` sem itens acima ou com bloqueio ligado.
   String? get avisoEstoque => avisoResumoEstoque(itens.values, regraEstoque);
 
+  /// Produtos que a venda deixa com estoque baixo ou zerado (KAN-44).
+  /// Só informa: não impede finalizar.
+  List<String> get avisosEstoqueBaixo =>
+      avisosEstoqueBaixoAposVenda(itens.values);
+
   /// O que ainda falta para finalizar, ou `null` se está tudo certo.
   String? get impedimento {
     if (cliente == null) return 'Selecione o cliente.';

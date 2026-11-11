@@ -17,13 +17,36 @@ import 'estoque_providers.dart';
 import 'registrar_entrada_sheet.dart';
 import 'selo_situacao_estoque.dart';
 
+/// Argumento de rota de `AppRoutes.estoque` (KAN-44).
+class EstoqueRotaArgs {
+  const EstoqueRotaArgs({this.apenasAlertas = false});
+
+  /// Abre a tela já filtrada em alertas.
+  final bool apenasAlertas;
+}
+
 /// Controle de estoque (KAN-41): consulta do estoque dos produtos, em
 /// tempo real e com o cache offline, com resumo, busca e filtros.
 ///
-/// Só consulta. Registrar entrada (KAN-42), baixa na venda (KAN-43) e
-/// alerta de estoque baixo (KAN-44) são tarefas à parte.
+/// Registrar entrada (KAN-42) e baixa na venda (KAN-43) têm telas e
+/// regras próprias. O filtro "Alertas" (KAN-44) mostra os produtos com
+/// estoque baixo, sem estoque ou negativo, do mais grave ao menos grave.
+///
+/// Com [apenasAlertas], a tela abre já nesse filtro (vindo do aviso da
+/// aba Produtos). É só o ponto de partida: o filtro continua editável e
+/// não fica guardado em estado global.
 class EstoqueScreen extends ConsumerStatefulWidget {
-  const EstoqueScreen({super.key});
+  const EstoqueScreen({this.apenasAlertas = false, super.key});
+
+  final bool apenasAlertas;
+
+  /// Monta a tela a partir dos `arguments` da rota (`EstoqueRotaArgs`).
+  static Widget daRota(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    return EstoqueScreen(
+      apenasAlertas: args is EstoqueRotaArgs && args.apenasAlertas,
+    );
+  }
 
   @override
   ConsumerState<EstoqueScreen> createState() => _EstoqueScreenState();
@@ -34,6 +57,18 @@ class _EstoqueScreenState extends ConsumerState<EstoqueScreen> {
 
   final _busca = TextEditingController();
   Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.apenasAlertas) {
+      // Um provider não pode ser alterado durante o build; o filtro entra
+      // logo depois e antes de os dados chegarem (a tela abre carregando).
+      Future.microtask(() {
+        if (mounted) ref.read(filtroEstoqueProvider.notifier).filtrarAlertas();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -58,6 +93,9 @@ class _EstoqueScreenState extends ConsumerState<EstoqueScreen> {
   @override
   Widget build(BuildContext context) {
     final itens = ref.watch(itensEstoqueProvider);
+    // Observado aqui (e não só quando há dados) para o filtro aplicado ao
+    // abrir não ser descartado enquanto a lista ainda carrega.
+    final filtro = ref.watch(filtroEstoqueProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -78,7 +116,7 @@ class _EstoqueScreenState extends ConsumerState<EstoqueScreen> {
         label: const Text('Registrar entrada'),
       ),
       body: itens.when(
-        data: _conteudo,
+        data: (todos) => _conteudo(todos, filtro),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) {
           debugPrint('Erro ao carregar estoque: $error');
@@ -94,7 +132,7 @@ class _EstoqueScreenState extends ConsumerState<EstoqueScreen> {
     );
   }
 
-  Widget _conteudo(List<ItemEstoque> todos) {
+  Widget _conteudo(List<ItemEstoque> todos, FiltroEstoque filtro) {
     if (todos.isEmpty) {
       return const Center(
         child: EmptyState(
@@ -106,17 +144,19 @@ class _EstoqueScreenState extends ConsumerState<EstoqueScreen> {
       );
     }
 
-    final filtro = ref.watch(filtroEstoqueProvider);
     final notificador = ref.read(filtroEstoqueProvider.notifier);
     final categorias = categoriasDoEstoque(todos);
-    final itens = ordenarEstoque(
-      filtrarEstoque(
-        todos,
-        situacao: filtro.situacao,
-        categoria: filtro.categoria,
-        termo: filtro.termo,
-      ),
+    final filtrados = filtrarEstoque(
+      todos,
+      situacao: filtro.situacao,
+      categoria: filtro.categoria,
+      termo: filtro.termo,
+      apenasAlertas: filtro.apenasAlertas,
     );
+    // Alertas por gravidade; as demais listas, na ordem da KAN-41.
+    final itens = filtro.apenasAlertas
+        ? ordenarAlertas(filtrados)
+        : ordenarEstoque(filtrados);
 
     return Column(
       children: [
@@ -152,15 +192,19 @@ class _EstoqueScreenState extends ConsumerState<EstoqueScreen> {
             ),
           ),
         ),
-        FilterChipBar<SituacaoEstoque>(
+        FilterChipBar<_FiltroRapido>(
           opcoes: const [
             OpcaoFiltro('Todos', null),
-            OpcaoFiltro('Normal', SituacaoEstoque.normal),
-            OpcaoFiltro('Baixo', SituacaoEstoque.baixo),
-            OpcaoFiltro('Sem estoque', SituacaoEstoque.semEstoque),
+            OpcaoFiltro('Alertas', _FiltroRapido.alertas),
+            OpcaoFiltro('Normal', _FiltroRapido.normal),
+            OpcaoFiltro('Baixo', _FiltroRapido.baixo),
+            OpcaoFiltro('Sem estoque', _FiltroRapido.semEstoque),
           ],
-          selecionado: filtro.situacao,
-          onSelecionar: notificador.filtrarPorSituacao,
+          selecionado: _FiltroRapido.de(filtro),
+          onSelecionar: (opcao) => switch (opcao) {
+            _FiltroRapido.alertas => notificador.filtrarAlertas(),
+            _ => notificador.filtrarPorSituacao(opcao?.situacao),
+          },
         ),
         if (categorias.length > 1) ...[
           const SizedBox(height: AppSpacing.sm),
@@ -176,13 +220,20 @@ class _EstoqueScreenState extends ConsumerState<EstoqueScreen> {
         const SizedBox(height: AppSpacing.sm),
         Expanded(
           child: itens.isEmpty
-              ? const Center(
+              ? Center(
                   child: SingleChildScrollView(
-                    child: EmptyState(
-                      icone: Icons.search_off,
-                      titulo: 'Nenhum produto encontrado',
-                      descricao: 'Ajuste a busca ou os filtros.',
-                    ),
+                    child: _semAlertas(filtro)
+                        ? const EmptyState(
+                            icone: Icons.check_circle_outline,
+                            titulo: 'Nenhum alerta de estoque',
+                            descricao:
+                                'Todos os produtos estão acima do mínimo.',
+                          )
+                        : const EmptyState(
+                            icone: Icons.search_off,
+                            titulo: 'Nenhum produto encontrado',
+                            descricao: 'Ajuste a busca ou os filtros.',
+                          ),
                   ),
                 )
               : ListView.separated(
@@ -201,6 +252,35 @@ class _EstoqueScreenState extends ConsumerState<EstoqueScreen> {
         ),
       ],
     );
+  }
+}
+
+/// Filtro "Alertas" sozinho, sem busca nem categoria: lista vazia aqui
+/// quer dizer que não há alertas, e não que a busca não achou nada.
+bool _semAlertas(FiltroEstoque filtro) =>
+    filtro.apenasAlertas &&
+    filtro.termo.trim().isEmpty &&
+    filtro.categoria == null;
+
+/// Chips de situação da barra de filtros: os da KAN-41 mais "Alertas".
+enum _FiltroRapido {
+  alertas(null),
+  normal(SituacaoEstoque.normal),
+  baixo(SituacaoEstoque.baixo),
+  semEstoque(SituacaoEstoque.semEstoque);
+
+  const _FiltroRapido(this.situacao);
+
+  final SituacaoEstoque? situacao;
+
+  static _FiltroRapido? de(FiltroEstoque filtro) {
+    if (filtro.apenasAlertas) return alertas;
+    return switch (filtro.situacao) {
+      SituacaoEstoque.normal => normal,
+      SituacaoEstoque.baixo => baixo,
+      SituacaoEstoque.semEstoque => semEstoque,
+      null => null,
+    };
   }
 }
 
@@ -279,6 +359,7 @@ class _CardEstoque extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = item.produto;
+    final textoFalta = textoFaltaParaMinimo(item);
     return ProductCard(
       produto: p,
       selo: SeloSituacaoEstoque(item),
@@ -296,6 +377,15 @@ class _CardEstoque extends StatelessWidget {
           'mín. ${p.estoqueMinimo}',
           style: AppTextStyles.cardSubtitle,
         ),
+        if (textoFalta != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            textoFalta,
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.statusInadimplente,
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.xs),
         Text(
           'Preço ${formatarMoeda(p.preco)} · custo ${formatarMoeda(p.custoAtual)}',

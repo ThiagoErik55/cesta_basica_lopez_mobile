@@ -1,3 +1,4 @@
+import '../../estoque/domain/controle_estoque.dart';
 import '../../estoque/domain/regra_estoque.dart';
 import 'carrinho.dart';
 
@@ -87,3 +88,69 @@ String? avisoResumoEstoque(Iterable<ItemCarrinho> itens, RegraEstoque regra) {
       ? '1 item acima do estoque registrado: o estoque ficará negativo.'
       : '$n itens acima do estoque registrado: o estoque ficará negativo.';
 }
+
+/// Produto que, depois da venda, fica com estoque baixo ou zerado, sem
+/// ficar negativo (KAN-44). O negativo já tem o aviso de
+/// [ItemAcimaDoEstoque].
+class ItemEstoqueBaixoAposVenda {
+  const ItemEstoqueBaixoAposVenda({
+    required this.produtoId,
+    required this.nome,
+    required this.estoqueApos,
+    required this.situacao,
+  });
+
+  final String produtoId;
+  final String nome;
+
+  /// Saldo depois da venda; nunca negativo aqui.
+  final int estoqueApos;
+
+  /// Situação do saldo depois da venda, pela mesma regra da tela Estoque.
+  final SituacaoEstoque situacao;
+}
+
+/// Produtos que a venda deixa em alerta (estoque baixo ou exatamente
+/// zero), na ordem do carrinho. Reaproveita a soma por produto da
+/// KAN-43 e [situacaoDoEstoque]; estoque igual ao mínimo conta como
+/// baixo, como na tela Estoque.
+List<ItemEstoqueBaixoAposVenda> itensComEstoqueBaixoAposVenda(
+  Iterable<ItemCarrinho> itens,
+) {
+  final soma = somarQuantidadesPorProduto(itens);
+  final vistos = <String>{};
+  final avisos = <ItemEstoqueBaixoAposVenda>[];
+  for (final i in itens) {
+    final p = i.produto;
+    if (!vistos.add(p.id)) continue;
+    final apos = p.estoqueAtual - soma[p.id]!;
+    if (apos < 0) continue;
+    final situacao = situacaoDoEstoque(
+      estoqueAtual: apos,
+      estoqueMinimo: p.estoqueMinimo,
+    );
+    if (situacao == SituacaoEstoque.normal) continue;
+    avisos.add(
+      ItemEstoqueBaixoAposVenda(
+        produtoId: p.id,
+        nome: p.nome,
+        estoqueApos: apos,
+        situacao: situacao,
+      ),
+    );
+  }
+  return avisos;
+}
+
+/// "Arroz ficará com estoque baixo (3 un.)" ou "Arroz ficará sem estoque".
+String textoEstoqueBaixoAposVenda(ItemEstoqueBaixoAposVenda item) =>
+    item.situacao == SituacaoEstoque.baixo
+    ? '${item.nome} ficará com estoque baixo (${item.estoqueApos} un.)'
+    : '${item.nome} ficará sem estoque';
+
+/// Avisos informativos do resumo da venda; vazia se nada fica em alerta.
+/// Não bloqueia a venda.
+List<String> avisosEstoqueBaixoAposVenda(Iterable<ItemCarrinho> itens) => [
+  for (final i in itensComEstoqueBaixoAposVenda(itens))
+    textoEstoqueBaixoAposVenda(i),
+];

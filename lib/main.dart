@@ -75,7 +75,7 @@ class CestaBasicaApp extends StatelessWidget {
         AppRoutes.editarCliente: (context) => CadastroClienteScreen(
           cliente: ModalRoute.of(context)!.settings.arguments! as ClienteModel,
         ),
-        AppRoutes.estoque: (context) => const EstoqueScreen(),
+        AppRoutes.estoque: EstoqueScreen.daRota,
         AppRoutes.cadastroProduto: (context) => const CadastroProdutoScreen(),
         AppRoutes.editarProduto: (context) => CadastroProdutoScreen(
           produto: ModalRoute.of(context)!.settings.arguments! as ProdutoModel,

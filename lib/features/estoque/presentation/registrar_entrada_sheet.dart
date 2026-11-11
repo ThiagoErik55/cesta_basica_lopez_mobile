@@ -85,10 +85,16 @@ class _RegistrarEntradaSheetState extends ConsumerState<RegistrarEntradaSheet> {
             observacao: _observacao.text,
           );
       navegador.pop();
+      // Só informa: a gravação já foi feita (KAN-44).
+      final aviso = avisoAposEntrada(
+        estoqueApos: r.estoqueApos!,
+        estoqueMinimo: item.produto.estoqueMinimo,
+      );
       mensageiro.showSnackBar(
         SnackBar(
           content: Text(
             'Entrada registrada: +${registrada.quantidade} un.'
+            '${aviso == null ? '' : ' $aviso'}'
             '${registrada.sincronizado ? '' : ' Salva no aparelho: será enviada quando houver conexão.'}',
           ),
         ),

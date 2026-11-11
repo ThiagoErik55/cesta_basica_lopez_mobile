@@ -11,6 +11,9 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/filter_chip_bar.dart';
 import '../../../core/widgets/product_card.dart';
 import '../../auth/presentation/logout_button.dart';
+import '../../estoque/presentation/estoque_providers.dart';
+import '../../estoque/presentation/estoque_screen.dart';
+import '../../estoque/presentation/faixa_alerta_estoque.dart';
 import 'produto_providers.dart';
 
 /// Aba de listagem e busca de produtos (KAN-23). A busca é por prefixo
@@ -58,14 +61,22 @@ class _ProdutosScreenState extends ConsumerState<ProdutosScreen> {
   Widget build(BuildContext context) {
     final produtos = ref.watch(produtosProvider);
     final filtro = ref.watch(filtroProdutosProvider);
+    // Mesmo stream da tela Estoque; carregando ou com erro vale 0.
+    final alertas = ref.watch(contagemAlertasEstoqueProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Produtos'),
         actions: [
           IconButton(
-            tooltip: 'Controle de estoque',
-            icon: const Icon(Icons.warehouse_outlined),
+            tooltip: alertas > 0
+                ? 'Controle de estoque: $alertas em alerta'
+                : 'Controle de estoque',
+            icon: Badge(
+              isLabelVisible: alertas > 0,
+              label: Text('$alertas'),
+              child: const Icon(Icons.warehouse_outlined),
+            ),
             onPressed: () => Navigator.of(context).pushNamed(AppRoutes.estoque),
           ),
           const LogoutButton(),
@@ -86,6 +97,13 @@ class _ProdutosScreenState extends ConsumerState<ProdutosScreen> {
       ),
       body: Column(
         children: [
+          FaixaAlertaEstoque(
+            alertas: alertas,
+            onVer: () => Navigator.of(context).pushNamed(
+              AppRoutes.estoque,
+              arguments: const EstoqueRotaArgs(apenasAlertas: true),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.md,

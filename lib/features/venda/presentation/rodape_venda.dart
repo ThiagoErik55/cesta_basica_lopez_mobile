@@ -15,6 +15,7 @@ class RodapeVenda extends StatelessWidget {
     required this.unidades,
     this.descricaoPagamento,
     this.avisoEstoque,
+    this.avisosEstoqueBaixo = const [],
     this.finalizando = false,
     this.onFinalizar,
     super.key,
@@ -28,6 +29,10 @@ class RodapeVenda extends StatelessWidget {
 
   /// Aviso único de itens acima do estoque registrado (KAN-43).
   final String? avisoEstoque;
+
+  /// Produtos que ficarão com estoque baixo depois da venda (KAN-44);
+  /// só informativo.
+  final List<String> avisosEstoqueBaixo;
   final bool finalizando;
   final VoidCallback? onFinalizar;
 
@@ -61,6 +66,26 @@ class RodapeVenda extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
+              ],
+              if (avisosEstoqueBaixo.isNotEmpty) ...[
+                for (final texto in avisosEstoqueBaixo)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: AppColors.statusAtencao,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Expanded(
+                          child: Text(texto, style: AppTextStyles.caption),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: AppSpacing.xs),
               ],
               Row(
                 children: [
