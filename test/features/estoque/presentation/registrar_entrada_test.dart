@@ -16,17 +16,19 @@ import 'package:flutter_test/flutter_test.dart';
 
 final _t = DateTime(2026, 11, 10);
 
-ProdutoModel _produto({int estoque = 20, double custo = 4}) => ProdutoModel(
-  id: 'p1',
-  codigo: 'P-1',
-  nome: 'Arroz',
-  marca: 'Tio João',
-  categoria: 'Grãos',
-  preco: 10,
-  custoAtual: custo,
-  estoqueAtual: estoque,
-  updatedAt: _t,
-);
+ProdutoModel _produto({int estoque = 20, double custo = 4, int minimo = 10}) =>
+    ProdutoModel(
+      id: 'p1',
+      codigo: 'P-1',
+      nome: 'Arroz',
+      marca: 'Tio João',
+      categoria: 'Grãos',
+      preco: 10,
+      custoAtual: custo,
+      estoqueAtual: estoque,
+      estoqueMinimo: minimo,
+      updatedAt: _t,
+    );
 
 class _UsuarioFalso implements User {
   @override
@@ -284,6 +286,81 @@ void main() {
       expect(movs.single.data()['observacao'], 'Fornecedor X');
       final p = (await db.collection('produtos').doc('p1').get()).data()!;
       expect(p['estoqueAtual'], 32);
+    });
+
+    testWidgets('continua abaixo do mínimo: o SnackBar avisa quanto falta e '
+        'a entrada é gravada igual', (tester) async {
+      await db
+          .collection('produtos')
+          .doc('p1')
+          .set(_produto(estoque: 2).toMap());
+      await _abrir(tester, db);
+      await tester.enterText(_campo('Quantidade'), '3');
+      await tester.pump();
+      await tester.tap(find.text('Confirmar entrada'));
+      await tester.pumpAndSettle();
+
+      // 2 + 3 = 5; mínimo 10 → faltam 5.
+      expect(
+        find.text(
+          'Entrada registrada: +3 un. Ainda abaixo do mínimo: faltam 5 un.',
+        ),
+        findsOneWidget,
+      );
+      final p = (await db.collection('produtos').doc('p1').get()).data()!;
+      expect(p['estoqueAtual'], 5);
+      expect(
+        (await db.collection('movimentosEstoque').get()).docs,
+        hasLength(1),
+      );
+    });
+
+    testWidgets('entrada que leva ao mínimo exato avisa "no limite"', (
+      tester,
+    ) async {
+      await db
+          .collection('produtos')
+          .doc('p1')
+          .set(_produto(estoque: 2).toMap());
+      await _abrir(tester, db);
+      await tester.enterText(_campo('Quantidade'), '8');
+      await tester.pump();
+      await tester.tap(find.text('Confirmar entrada'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Entrada registrada: +8 un. Estoque no limite do mínimo.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('saída do alerta: SnackBar sem aviso', (tester) async {
+      await db
+          .collection('produtos')
+          .doc('p1')
+          .set(_produto(estoque: 2).toMap());
+      await _abrir(tester, db);
+      await tester.enterText(_campo('Quantidade'), '20');
+      await tester.pump();
+      await tester.tap(find.text('Confirmar entrada'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Entrada registrada: +20 un.'), findsOneWidget);
+      expect(find.textContaining('Ainda abaixo'), findsNothing);
+    });
+
+    testWidgets('mínimo 0 com saldo positivo: sem aviso', (tester) async {
+      await db
+          .collection('produtos')
+          .doc('p1')
+          .set(_produto(estoque: 1, minimo: 0).toMap());
+      await _abrir(tester, db);
+      await tester.enterText(_campo('Quantidade'), '1');
+      await tester.pump();
+      await tester.tap(find.text('Confirmar entrada'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Entrada registrada: +1 un.'), findsOneWidget);
     });
 
     testWidgets('erro de gravação mostra mensagem e mantém o sheet', (
