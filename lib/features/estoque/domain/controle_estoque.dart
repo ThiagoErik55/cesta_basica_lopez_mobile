@@ -115,16 +115,19 @@ List<String> categoriasDoEstoque(List<ItemEstoque> itens) => {
 
 /// Filtra por situação, categoria e busca (nome, marca ou código, sem
 /// diferenciar maiúsculas nem acentos). Filtro `null` não restringe.
+/// [apenasAlertas] deixa só os produtos em alerta (ver [emAlerta]).
 List<ItemEstoque> filtrarEstoque(
   List<ItemEstoque> itens, {
   SituacaoEstoque? situacao,
   String? categoria,
   String termo = '',
+  bool apenasAlertas = false,
 }) {
   final busca = normalizarBusca(termo.trim());
   return [
     for (final i in itens)
       if ((situacao == null || i.situacao == situacao) &&
+          (!apenasAlertas || emAlerta(i)) &&
           (categoria == null || i.produto.categoria == categoria) &&
           (busca.isEmpty ||
               normalizarBusca(i.produto.nome).contains(busca) ||
@@ -150,6 +153,90 @@ int _ordem(SituacaoEstoque s) => switch (s) {
   SituacaoEstoque.baixo => 1,
   SituacaoEstoque.normal => 2,
 };
+
+// --- Alerta de estoque baixo (KAN-44) ---------------------------------
+// Usa a mesma situação derivada de [situacaoDoEstoque]: não há uma
+// segunda regra de "o que é estoque baixo".
+
+/// Produto em alerta: estoque baixo, sem estoque ou negativo. Estoque
+/// igual ao mínimo conta como baixo (regra de [situacaoDoEstoque]) e,
+/// com mínimo 0, só `semEstoque`/negativo alertam.
+bool emAlerta(ItemEstoque item) => item.situacao != SituacaoEstoque.normal;
+
+/// Quantos produtos estão em alerta.
+int contarAlertas(Iterable<ItemEstoque> itens) => itens.where(emAlerta).length;
+
+/// Unidades que faltam para atingir o mínimo; nunca negativo. Saldo
+/// negativo conta a partir do saldo (mín. 10, saldo -3 → faltam 13).
+int faltamParaMinimo({required int estoqueAtual, required int estoqueMinimo}) {
+  final falta = estoqueMinimo - estoqueAtual;
+  return falta > 0 ? falta : 0;
+}
+
+/// Relação saldo/mínimo, para ordenar por gravidade (menor = mais grave).
+/// Com mínimo 0 não há divisão: vale o próprio saldo (que, num alerta, é
+/// zero ou negativo).
+double _relacaoComMinimo(ProdutoModel p) => p.estoqueMinimo > 0
+    ? p.estoqueAtual / p.estoqueMinimo
+    : p.estoqueAtual.toDouble();
+
+/// Alertas por gravidade: negativo e sem estoque primeiro, depois baixo;
+/// em cada grupo, menor relação saldo/mínimo e depois nome. Produtos
+/// normais, se houver, ficam por último.
+List<ItemEstoque> ordenarAlertas(List<ItemEstoque> itens) =>
+    [...itens]..sort((a, b) {
+      final grupo = _ordem(a.situacao).compareTo(_ordem(b.situacao));
+      if (grupo != 0) return grupo;
+      final relacao = _relacaoComMinimo(a.produto)
+          .compareTo(_relacaoComMinimo(b.produto));
+      if (relacao != 0) return relacao;
+      final nome = normalizarBusca(a.produto.nome)
+          .compareTo(normalizarBusca(b.produto.nome));
+      return nome != 0 ? nome : a.produto.id.compareTo(b.produto.id);
+    });
+
+/// Texto de quanto falta para o mínimo no card do alerta; `null` fora de
+/// alerta ou sem mínimo definido (mínimo 0 e nada a completar).
+String? textoFaltaParaMinimo(ItemEstoque item) {
+  if (!emAlerta(item)) return null;
+  final falta = faltamParaMinimo(
+    estoqueAtual: item.produto.estoqueAtual,
+    estoqueMinimo: item.produto.estoqueMinimo,
+  );
+  if (falta > 0) {
+    return 'Faltam $falta un. para o mínimo (${item.produto.estoqueMinimo})';
+  }
+  return item.produto.estoqueMinimo > 0 ? 'No limite do mínimo' : null;
+}
+
+/// Texto da faixa da aba Produtos; `null` sem alertas.
+String? textoFaixaAlertas(int alertas) {
+  if (alertas <= 0) return null;
+  return alertas == 1
+      ? '1 produto com estoque baixo ou zerado'
+      : '$alertas produtos com estoque baixo ou zerado';
+}
+
+/// Aviso do SnackBar depois de uma entrada, quando o produto continua em
+/// alerta com o novo saldo; `null` se saiu do alerta.
+String? avisoAposEntrada({
+  required int estoqueApos,
+  required int estoqueMinimo,
+}) {
+  final situacao = situacaoDoEstoque(
+    estoqueAtual: estoqueApos,
+    estoqueMinimo: estoqueMinimo,
+  );
+  if (situacao == SituacaoEstoque.normal) return null;
+  final falta = faltamParaMinimo(
+    estoqueAtual: estoqueApos,
+    estoqueMinimo: estoqueMinimo,
+  );
+  if (falta > 0) return 'Ainda abaixo do mínimo: faltam $falta un.';
+  return situacao == SituacaoEstoque.baixo
+      ? 'Estoque no limite do mínimo.'
+      : 'O produto continua sem estoque.';
+}
 
 /// Movimentos ativos, do mais recente para o mais antigo. A consulta do
 /// Firestore não ordena (evita índice composto): a ordem é feita aqui.
