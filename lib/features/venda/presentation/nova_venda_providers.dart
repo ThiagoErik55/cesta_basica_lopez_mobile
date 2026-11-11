@@ -7,11 +7,13 @@ import 'package:intl/intl.dart';
 import '../../../core/domain/enums.dart';
 import '../../../core/providers/firebase_providers.dart';
 import '../../../core/providers/regra_bloqueio_provider.dart';
+import '../../../core/providers/regra_estoque_provider.dart';
 import '../../../core/utils/id_generator.dart';
 import '../../cliente/data/cliente_model.dart';
 import '../../cliente/data/cliente_repository.dart';
 import '../../cliente/domain/regra_bloqueio.dart';
 import '../../estoque/data/movimento_estoque_model.dart';
+import '../../estoque/domain/regra_estoque.dart';
 import '../../produto/data/produto_model.dart';
 import '../../produto/data/produto_repository.dart';
 import '../data/parcela_model.dart';
@@ -20,6 +22,7 @@ import '../data/venda_repository.dart';
 import '../domain/atualizacao_cliente.dart';
 import '../domain/calculo_parcelas.dart';
 import '../domain/carrinho.dart';
+import '../domain/estoque_venda.dart';
 import '../domain/pendencia_cliente.dart';
 
 /// Produtos disponíveis para venda (KAN-25). Vem do cache do Firestore,
@@ -71,6 +74,7 @@ class NovaVendaState {
     this.numeroParcelas = 2,
     required this.primeiroVencimento,
     this.regra = regraBloqueioPadrao,
+    this.regraEstoque = regraEstoquePadrao,
     this.parcelasPendentes,
   });
 
@@ -84,6 +88,9 @@ class NovaVendaState {
 
   /// Regra de bloqueio em vigor (KAN-35).
   final RegraBloqueio regra;
+
+  /// Política de estoque insuficiente em vigor (KAN-43).
+  final RegraEstoque regraEstoque;
 
   /// Parcelas pendentes de todas as vendas do cliente selecionado, para
   /// avaliar o bloqueio por atraso. `null` até carregar; nesse meio
@@ -109,6 +116,10 @@ class NovaVendaState {
     );
   }
 
+  /// Aviso único do resumo quando há itens acima do estoque e a regra
+  /// permite a venda; `null` sem itens acima ou com bloqueio ligado.
+  String? get avisoEstoque => avisoResumoEstoque(itens.values, regraEstoque);
+
   /// O que ainda falta para finalizar, ou `null` se está tudo certo.
   String? get impedimento {
     if (cliente == null) return 'Selecione o cliente.';
@@ -119,6 +130,10 @@ class NovaVendaState {
       return pendencia.mensagens.first;
     }
     if (itens.isEmpty) return 'Adicione pelo menos um produto.';
+    // Só com a regra de bloqueio ligada; desligada, a venda segue e o
+    // estoque pode ficar negativo.
+    final semEstoque = impedimentosDeEstoque(itens.values, regraEstoque);
+    if (semEstoque.isNotEmpty) return semEstoque.join('\n');
     if (pagamento == null) return 'Escolha a forma de pagamento.';
     if (pendencia != null) {
       if (parcelado && !pendencia.permiteParcelado) {
@@ -153,6 +168,7 @@ class NovaVendaState {
     numeroParcelas: numeroParcelas ?? this.numeroParcelas,
     primeiroVencimento: primeiroVencimento ?? this.primeiroVencimento,
     regra: regra,
+    regraEstoque: regraEstoque,
     parcelasPendentes: limparParcelasPendentes
         ? null
         : (parcelasPendentes ?? this.parcelasPendentes),
@@ -193,6 +209,7 @@ class NovaVendaNotifier extends Notifier<NovaVendaState> {
         hoje.day,
       ).add(prazoPrimeiraParcela),
       regra: ref.read(regraBloqueioProvider),
+      regraEstoque: ref.read(regraEstoqueProvider),
     );
   }
 
@@ -334,7 +351,9 @@ class NovaVendaNotifier extends Notifier<NovaVendaState> {
           )
         : const <ParcelaModel>[];
 
-    // Baixa de estoque (RF23). Sem bloqueio por estoque zerado.
+    // Baixa de estoque (RF23): uma saída por item, com o custo atual do
+    // produto (para o lucro real). Bloqueio por estoque só se a
+    // RegraEstoque pedir (ver impedimento).
     final movimentos = [
       for (final item in s.itens.values)
         MovimentoEstoqueModel(

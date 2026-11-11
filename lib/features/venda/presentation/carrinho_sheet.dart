@@ -6,6 +6,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatadores.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../domain/estoque_venda.dart';
 import 'nova_venda_providers.dart';
 import 'seletor_quantidade.dart';
 
@@ -26,6 +27,7 @@ class _CarrinhoSheet extends ConsumerWidget {
     final venda = ref.watch(novaVendaProvider);
     final notifier = ref.read(novaVendaProvider.notifier);
     final itens = venda.itens.values.toList();
+    final acima = {for (final i in itensAcimaDoEstoque(itens)) i.produtoId: i};
 
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -81,6 +83,13 @@ class _CarrinhoSheet extends ConsumerWidget {
                                 '${formatarMoeda(item.subtotal)}',
                                 style: AppTextStyles.cardSubtitle,
                               ),
+                              if (acima[item.produto.id] case final falta?)
+                                Text(
+                                  textoFaltaEstoque(falta),
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.statusInadimplente,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
