@@ -271,6 +271,29 @@ void main() {
       expect(i.vencendoNaData, isTrue);
     });
 
+    test('saldoVencido: só as parcelas vencidas, sem a que vence na data', () {
+      final i = _um(_c('1', 'Ana', aberto: 300), {
+        '1': [
+          _p('p1', DateTime(2026, 11, 10), valor: 100, pagoParcial: 30),
+          _p('p2', DateTime(2026, 11, 14), valor: 100),
+          _p('p3', DateTime(2026, 12, 14), valor: 100),
+        ],
+      });
+      expect(i.saldoVencido, 70);
+      expect(i.aReceber, 170);
+    });
+
+    test('saldoVencido sem as parcelas: valor em aberto, se já venceu', () {
+      final vencido = _agenda([
+        _c('1', 'Ana', aberto: 120, proximo: DateTime(2026, 11, 10)),
+      ], parcelas: null).single;
+      expect(vencido.saldoVencido, 120);
+      final emDia = _agenda([
+        _c('1', 'Ana', aberto: 120, proximo: DateTime(2026, 11, 20)),
+      ], parcelas: null).single;
+      expect(emDia.saldoVencido, 0);
+    });
+
     test('cliente sem parcelas pendentes: nada a destacar', () {
       final i = _um(_c('1', 'Ana'), {});
       expect(i.aCobrar, isFalse);

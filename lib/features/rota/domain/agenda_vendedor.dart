@@ -63,6 +63,7 @@ class ItemAgenda {
     required this.diasVencida,
     required this.aReceber,
     required this.valoresPorParcela,
+    this.saldoVencido = 0,
   });
 
   final ClienteModel cliente;
@@ -85,6 +86,11 @@ class ItemAgenda {
   /// Soma do saldo das parcelas pendentes com vencimento até a data
   /// escolhida (as vencidas e as que vencem nela).
   final double aReceber;
+
+  /// Parte do [aReceber] que já está vencida na data (sem as parcelas que
+  /// vencem exatamente nela). Sem as parcelas, é uma estimativa: o
+  /// `valorEmAberto` do cliente, se ele tem vencimento passado (KAN-48).
+  final double saldoVencido;
 
   /// `true` quando os números vêm das parcelas; `false` quando as
   /// parcelas não estavam disponíveis e foram estimados pelo resumo do
@@ -137,12 +143,14 @@ List<ItemAgenda> montarAgenda({
     var vencendo = false;
     var maiorAtraso = 0;
     var receberCentavos = 0;
+    var vencidoCentavos = 0;
     if (porParcela) {
       for (final p in pendentes) {
         final dias = diasEntre(dia, p.vencimento);
         if (dias == 0) vencendo = true;
         if (dias > maiorAtraso) maiorAtraso = dias;
         if (dias >= 0) receberCentavos += _centavos(p.saldo);
+        if (dias > 0) vencidoCentavos += _centavos(p.saldo);
       }
     } else {
       // Sem as parcelas: o menor vencimento pendente é o do resumo.
@@ -150,7 +158,10 @@ List<ItemAgenda> montarAgenda({
       if (v != null && c.temDebito) {
         final dias = diasEntre(dia, v);
         vencendo = dias == 0;
-        if (dias > 0) maiorAtraso = dias;
+        if (dias > 0) {
+          maiorAtraso = dias;
+          vencidoCentavos = _centavos(c.valorEmAberto);
+        }
       }
     }
 
@@ -176,6 +187,7 @@ List<ItemAgenda> montarAgenda({
         vencendoNaData: vencendo,
         diasVencida: maiorAtraso,
         aReceber: receberCentavos / 100,
+        saldoVencido: vencidoCentavos / 100,
         valoresPorParcela: porParcela,
       ),
     );
