@@ -104,16 +104,21 @@ pw.Widget linhaPdf(
 );
 
 /// Divisor, data/hora de emissão e o aviso [aviso] ao pé do documento.
-pw.Widget rodapePdf({required String emitidoEm, required String aviso}) =>
-    pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-      children: [
-        pw.Divider(color: CoresPdf.borda, thickness: 1),
-        pw.SizedBox(height: 4),
-        pw.Text(
-          'Emitido em $emitidoEm',
-          style: pw.TextStyle(fontSize: 9, color: CoresPdf.cinza),
-        ),
-        pw.Text(aviso, style: pw.TextStyle(fontSize: 9, color: CoresPdf.cinza)),
-      ],
-    );
+/// [rotuloEmissao] é o texto antes da data ("Emitido em" por padrão;
+/// o relatório gerencial usa "Gerado em").
+pw.Widget rodapePdf({
+  required String emitidoEm,
+  required String aviso,
+  String rotuloEmissao = 'Emitido em',
+}) => pw.Column(
+  crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+  children: [
+    pw.Divider(color: CoresPdf.borda, thickness: 1),
+    pw.SizedBox(height: 4),
+    pw.Text(
+      '$rotuloEmissao $emitidoEm',
+      style: pw.TextStyle(fontSize: 9, color: CoresPdf.cinza),
+    ),
+    pw.Text(aviso, style: pw.TextStyle(fontSize: 9, color: CoresPdf.cinza)),
+  ],
+);
