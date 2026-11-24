@@ -86,9 +86,7 @@ void main() {
       _item(quantidade: 2, preco: 8, custo: 5),
     ];
     final r = ResumoDia.calcular(
-      vendas: [
-        _venda('v1', itensMistos),
-      ],
+      vendas: [_venda('v1', itensMistos)],
       despesas: const [],
     );
     expect(r.itensSemCusto, 1);
@@ -105,4 +103,38 @@ void main() {
     expect(r.despesas, 0.3);
     expect(r.saldo, 0);
   });
+
+  test(
+    'venda com troca de diferença de valor: faturamento − custo = lucro',
+    () {
+      final venda = VendaModel(
+        id: 'v1',
+        clienteId: 'c1',
+        clienteNome: 'Maria',
+        vendedorUid: 'u1',
+        numeroNota: 1,
+        data: _dia,
+        itens: [_item(quantidade: 1, preco: 100, custo: 60)],
+        trocas: [
+          TrocaItem(
+            id: 't1',
+            itemOriginalId: 'i',
+            produtoNovoId: 'p2',
+            produtoNovoNome: 'Outro',
+            quantidade: 1,
+            diferencaValor: 15,
+            data: _dia,
+          ),
+        ],
+        valorTotal: 100,
+        tipo: TipoVenda.aVista,
+        updatedAt: _dia,
+      );
+      final r = ResumoDia.calcular(vendas: [venda], despesas: const []);
+      expect(r.faturamento, 115);
+      expect(r.custoProdutos, 60);
+      expect(r.lucroBruto, 55);
+      expect(r.faturamento - r.custoProdutos, r.lucroBruto);
+    },
+  );
 }
