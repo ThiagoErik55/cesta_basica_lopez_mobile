@@ -27,4 +27,12 @@ void main() {
   test('formatarDataHora mostra data e hora', () {
     expect(formatarDataHora(DateTime(2026, 11, 9, 14, 5)), '09/11/2026 14:05');
   });
+
+  test('formatarCentavos formata inteiros sem ponto flutuante', () {
+    expect(formatarCentavos(0), r'R$ 0,00');
+    expect(formatarCentavos(5), r'R$ 0,05');
+    expect(formatarCentavos(123456), r'R$ 1.234,56');
+    expect(formatarCentavos(100000000), r'R$ 1.000.000,00');
+    expect(formatarCentavos(-500), r'−R$ 5,00');
+  });
 }

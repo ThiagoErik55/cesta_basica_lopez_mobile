@@ -3,19 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/formatadores.dart';
 import '../domain/agregacao_financeira.dart';
 import 'painel_providers.dart';
-
-String _reais(int centavos) {
-  final negativo = centavos < 0;
-  final abs = centavos.abs();
-  final inteiro = '${abs ~/ 100}'.replaceAllMapped(
-    RegExp(r'\B(?=(\d{3})+(?!\d))'),
-    (_) => '.',
-  );
-  final cent = '${abs % 100}'.padLeft(2, '0');
-  return '${negativo ? '−' : ''}R\$ $inteiro,$cent';
-}
 
 /// Cartões do topo do painel (KAN-52).
 class PainelIndicadores extends StatelessWidget {
@@ -34,22 +24,30 @@ class PainelIndicadores extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = painel.totais;
     final c = painel.comparacao;
-    final recebido = painel.recebidoCompleto ? _reais(t.recebido) : '—';
+    final recebido = painel.recebidoCompleto
+        ? formatarCentavos(t.recebido)
+        : '—';
     final linhas = <List<Widget>>[
       [
         CartaoIndicador(
           rotulo: 'FATURAMENTO',
-          valor: _reais(t.faturamento),
+          valor: formatarCentavos(t.faturamento),
           comparar: true,
           variacao: c.variacaoFaturamento,
         ),
-        CartaoIndicador(rotulo: 'CUSTO DOS PRODUTOS', valor: _reais(t.custo)),
+        CartaoIndicador(
+          rotulo: 'CUSTO DOS PRODUTOS',
+          valor: formatarCentavos(t.custo),
+        ),
       ],
       [
-        CartaoIndicador(rotulo: 'LUCRO BRUTO', valor: _reais(t.lucroBruto)),
+        CartaoIndicador(
+          rotulo: 'LUCRO BRUTO',
+          valor: formatarCentavos(t.lucroBruto),
+        ),
         CartaoIndicador(
           rotulo: 'DESPESAS',
-          valor: _reais(t.despesas),
+          valor: formatarCentavos(t.despesas),
           comparar: true,
           variacao: c.variacaoDespesas,
           altaEhRuim: true,
@@ -58,7 +56,7 @@ class PainelIndicadores extends StatelessWidget {
       [
         CartaoIndicador(
           rotulo: 'LUCRO LÍQUIDO',
-          valor: _reais(t.lucroLiquido),
+          valor: formatarCentavos(t.lucroLiquido),
           comparar: true,
           variacao: c.variacaoLucroLiquido,
           destaque: true,
@@ -70,7 +68,10 @@ class PainelIndicadores extends StatelessWidget {
         ),
       ],
       [
-        CartaoIndicador(rotulo: 'TICKET MÉDIO', valor: _reais(t.ticketMedio)),
+        CartaoIndicador(
+          rotulo: 'TICKET MÉDIO',
+          valor: formatarCentavos(t.ticketMedio),
+        ),
         CartaoIndicador(
           rotulo: 'RECEBIDO NO PERÍODO',
           valor: recebido,
@@ -80,12 +81,16 @@ class PainelIndicadores extends StatelessWidget {
       [
         CartaoIndicador(
           rotulo: 'A RECEBER',
-          valor: recebiveis == null ? '—' : _reais(recebiveis!.aReceber),
+          valor: recebiveis == null
+              ? '—'
+              : formatarCentavos(recebiveis!.aReceber),
           detalhe: 'Em aberto hoje',
         ),
         CartaoIndicador(
           rotulo: 'EM ATRASO',
-          valor: recebiveis == null ? '—' : _reais(recebiveis!.emAtraso),
+          valor: recebiveis == null
+              ? '—'
+              : formatarCentavos(recebiveis!.emAtraso),
           detalhe: 'Vencido hoje',
           cor: (recebiveis?.emAtraso ?? 0) > 0
               ? AppColors.statusInadimplente
@@ -221,10 +226,15 @@ class VariacaoPercentual extends StatelessWidget {
     this.altaEhRuim = false,
     this.corNeutra = AppColors.textSecondary,
     this.semFundoClaro = false,
+    this.compacto = false,
     super.key,
   });
 
   final double? variacao;
+
+  /// Só a seta e o percentual (ou "—"), sem o "vs. anterior": para
+  /// células de tabela (KAN-53).
+  final bool compacto;
   final bool altaEhRuim;
   final Color corNeutra;
   final bool semFundoClaro;
@@ -234,7 +244,7 @@ class VariacaoPercentual extends StatelessWidget {
     final v = variacao;
     if (v == null) {
       return Text(
-        '— vs. período anterior',
+        compacto ? '—' : '— vs. período anterior',
         style: AppTextStyles.caption.copyWith(color: corNeutra),
       );
     }
@@ -260,14 +270,16 @@ class VariacaoPercentual extends StatelessWidget {
         Icon(icone, size: 14, color: cor),
         const SizedBox(width: 2),
         Text(texto, style: AppTextStyles.caption.copyWith(color: cor)),
-        const SizedBox(width: AppSpacing.xs),
-        Flexible(
-          child: Text(
-            'vs. anterior',
-            style: AppTextStyles.caption.copyWith(color: corNeutra),
-            overflow: TextOverflow.ellipsis,
+        if (!compacto) ...[
+          const SizedBox(width: AppSpacing.xs),
+          Flexible(
+            child: Text(
+              'vs. anterior',
+              style: AppTextStyles.caption.copyWith(color: corNeutra),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

@@ -7,6 +7,18 @@ final _dataHora = DateFormat('dd/MM/yyyy HH:mm');
 
 String formatarMoeda(double valor) => _moeda.format(valor);
 
+/// Dinheiro em centavos inteiros, sem passar por ponto flutuante:
+/// `123456` vira "R$ 1.234,56" e `-500` vira "−R$ 5,00".
+String formatarCentavos(int centavos) {
+  final abs = centavos.abs();
+  final inteiro = '${abs ~/ 100}'.replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (_) => '.',
+  );
+  final cent = '${abs % 100}'.padLeft(2, '0');
+  return '${centavos < 0 ? '−' : ''}R\$ $inteiro,$cent';
+}
+
 /// [vazio] é exibido quando não há data (ex. cliente que nunca comprou).
 String formatarData(DateTime? data, {String vazio = '—'}) =>
     data == null ? vazio : _data.format(data);
