@@ -255,14 +255,36 @@ class VendaRepository {
         ],
       );
 
+    /// Vendas com data em [de] (inclusive) até [ate] (exclusive), em tempo
+  /// real (saldo do dia, KAN-51).
+  ///
+  /// Filtra no Firestore só o intervalo de `data`, que usa o índice de
+  /// campo único criado automaticamente. A exclusão lógica é aplicada em
+  /// memória: `where('deleted')` junto do intervalo exigiria índice
+  /// composto.
   Stream<List<VendaModel>> observarPorPeriodo(DateTime de, DateTime ate) =>
-      _vendas
-          .where('deleted', isEqualTo: false)
-          .where('data', isGreaterThanOrEqualTo: de.toIso8601String())
-          .where('data', isLessThanOrEqualTo: ate.toIso8601String())
-          .snapshots()
-          .map((s) => s.docs.map((d) => VendaModel.fromMap(d.data())).toList());
+      _consultaPeriodo(de, ate).snapshots().map(_vendasAtivas);
 
+  /// Mesma leitura de [observarPorPeriodo], só do cache local, para
+  /// quando o servidor não responde a tempo.
+  Future<List<VendaModel>> periodoEmCache(DateTime de, DateTime ate) async =>
+      _vendasAtivas(
+        await _consultaPeriodo(
+          de,
+          ate,
+        ).get(const GetOptions(source: Source.cache)),
+      );
+
+  Query<Map<String, dynamic>> _consultaPeriodo(DateTime de, DateTime ate) =>
+      _vendas
+          .where('data', isGreaterThanOrEqualTo: de.toIso8601String())
+          .where('data', isLessThan: ate.toIso8601String());
+
+  List<VendaModel> _vendasAtivas(QuerySnapshot<Map<String, dynamic>> s) => s
+      .docs
+      .map((d) => VendaModel.fromMap(d.data()))
+      .where((v) => !v.deleted)
+      .toList();
   /// Parcelas da venda, em tempo real e na ordem do número.
   ///
   /// Lê a subcoleção inteira (poucas parcelas por venda) e aplica a
