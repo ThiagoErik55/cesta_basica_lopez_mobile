@@ -38,6 +38,23 @@ class FinanceiroScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Card(
             child: ListTile(
+              leading: const Icon(Icons.insights_outlined),
+              title: const Text(
+                'Painel financeiro',
+                style: AppTextStyles.cardTitle,
+              ),
+              subtitle: const Text(
+                'Lucro, despesas e vendas por semana, mês ou período',
+                style: AppTextStyles.cardSubtitle,
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.painelFinanceiro),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Card(
+            child: ListTile(
               leading: const Icon(Icons.local_gas_station_outlined),
               title: const Text('Despesas', style: AppTextStyles.cardTitle),
               subtitle: const Text(
