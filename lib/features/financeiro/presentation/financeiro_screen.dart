@@ -8,8 +8,8 @@ import '../../../core/widgets/empty_state.dart';
 import '../../auth/presentation/logout_button.dart';
 
 /// Aba financeira (RF27, RF29). Dá acesso ao controle de promissórias
-/// (KAN-34); a apuração de lucro e o lançamento de despesas chegam em
-/// uma próxima sprint.
+/// (KAN-34) e às despesas do vendedor (KAN-50); a apuração do saldo do
+/// dia chega em uma próxima task.
 class FinanceiroScreen extends StatelessWidget {
   const FinanceiroScreen({super.key});
 
@@ -42,13 +42,26 @@ class FinanceiroScreen extends StatelessWidget {
                   Navigator.of(context).pushNamed(AppRoutes.promissorias),
             ),
           ),
+          const SizedBox(height: AppSpacing.sm),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.local_gas_station_outlined),
+              title: const Text('Despesas', style: AppTextStyles.cardTitle),
+              subtitle: const Text(
+                'Combustível, alimentação e outros gastos do dia',
+                style: AppTextStyles.cardSubtitle,
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.despesas),
+            ),
+          ),
           const SizedBox(height: AppSpacing.lg),
           const EmptyState(
             icone: Icons.attach_money,
             titulo: 'Apuração em construção',
             descricao:
-                'A apuração de lucro e o lançamento de despesas '
-                'chegam em uma próxima sprint.',
+                'A apuração de lucro e o saldo do dia chegam em uma '
+                'próxima task.',
           ),
         ],
       ),

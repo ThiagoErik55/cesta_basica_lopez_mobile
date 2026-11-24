@@ -11,6 +11,7 @@ import 'features/cliente/data/cliente_model.dart';
 import 'features/cliente/presentation/cadastro_cliente_screen.dart';
 import 'features/cliente/presentation/detalhes_cliente_screen.dart';
 import 'features/estoque/presentation/estoque_screen.dart';
+import 'features/financeiro/presentation/despesas_screen.dart'; // NOVO
 import 'features/produto/data/produto_model.dart';
 import 'features/produto/presentation/cadastro_produto_screen.dart';
 import 'features/rota/presentation/rotas_screen.dart';
@@ -69,6 +70,7 @@ class CestaBasicaApp extends StatelessWidget {
         AppRoutes.promissorias: (context) => PromissoriasScreen(
           clienteId: ModalRoute.of(context)!.settings.arguments as String?,
         ),
+        AppRoutes.despesas: (context) => const DespesasScreen(), // NOVO
         AppRoutes.cadastroCliente: (context) => const CadastroClienteScreen(),
         AppRoutes.detalheCliente: (context) => DetalhesClienteScreen(
           clienteId: ModalRoute.of(context)!.settings.arguments! as String,
