@@ -20,6 +20,9 @@ class AppRoutes {
   /// cliente (String) em `arguments` para listar só as dele.
   static const String promissorias = '/promissorias';
 
+    /// Despesas do vendedor (KAN-50, RF27), aberta pelo Financeiro.
+  static const String despesas = '/financeiro/despesas';
+
   /// Comprovante de um pagamento (KAN-36). Recebe um `ComprovanteArgs`
   /// (venda, parcela e pagamento) em `arguments`.
   static const String comprovante = '/comprovante';

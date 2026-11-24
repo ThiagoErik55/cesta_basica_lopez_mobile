@@ -43,4 +43,19 @@ class DespesaModel implements EntidadeBase {
     updatedAt: lerData(map['updatedAt']),
     deleted: map['deleted'] as bool? ?? false,
   );
+
+  DespesaModel copyWith({
+    String? descricao,
+    double? valor,
+    DateTime? data,
+    bool? deleted,
+  }) => DespesaModel(
+    id: id,
+    vendedorUid: vendedorUid,
+    descricao: descricao ?? this.descricao,
+    valor: valor ?? this.valor,
+    data: data ?? this.data,
+    updatedAt: DateTime.now(),
+    deleted: deleted ?? this.deleted,
+  );
 }
