@@ -1,6 +1,6 @@
 import '../../venda/data/venda_model.dart';
 import '../data/despesa_model.dart';
-import 'formulario_despesa.dart';
+import 'agregacao_financeira.dart';
 
 /// Resumo financeiro de um dia do vendedor (RF29, KAN-51).
 ///
@@ -31,26 +31,16 @@ class ResumoDia {
     required Iterable<VendaModel> vendas,
     required Iterable<DespesaModel> despesas,
   }) {
-    var unidades = 0;
-    var faturamento = 0.0;
-    var lucro = 0.0;
-    var semCusto = 0;
-    for (final venda in vendas) {
-      faturamento += venda.valorTotal;
-      lucro += venda.margemBruta;
-      for (final item in venda.itens) {
-        unidades += item.quantidade;
-        if (item.custoUnitario <= 0) semCusto++;
-      }
-    }
+    // Uma só fonte para faturamento, custo e lucro (agregacao_financeira).
+    final t = calcularTotais(vendas: vendas, despesas: despesas);
     return ResumoDia(
-      pedidos: vendas.length,
-      unidades: unidades,
-      faturamento: _centavos(faturamento),
-      lucroBruto: _centavos(lucro),
-      despesas: _centavos(totalDespesas(despesas)),
-      quantidadeDespesas: despesas.length,
-      itensSemCusto: semCusto,
+      pedidos: t.vendas,
+      unidades: t.unidades,
+      faturamento: t.faturamento / 100,
+      lucroBruto: t.lucroBruto / 100,
+      despesas: t.despesas / 100,
+      quantidadeDespesas: t.quantidadeDespesas,
+      itensSemCusto: t.itensSemCusto,
     );
   }
 
