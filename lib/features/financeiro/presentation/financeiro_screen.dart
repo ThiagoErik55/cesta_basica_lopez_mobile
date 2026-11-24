@@ -4,12 +4,13 @@ import '../../../core/navigation/app_routes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/connection_badge.dart';
-import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/section_header.dart';
 import '../../auth/presentation/logout_button.dart';
+import 'saldo_dia_secao.dart';
+import 'seletor_dia.dart';
 
-/// Aba financeira (RF27, RF29). Dá acesso ao controle de promissórias
-/// (KAN-34) e às despesas do vendedor (KAN-50); a apuração do saldo do
-/// dia chega em uma próxima task.
+/// Aba financeira (RF27, RF29): saldo do dia do vendedor (KAN-51) e
+/// acesso às despesas (KAN-50) e ao controle de promissórias (KAN-34).
 class FinanceiroScreen extends StatelessWidget {
   const FinanceiroScreen({super.key});
 
@@ -29,19 +30,11 @@ class FinanceiroScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.receipt_long_outlined),
-              title: const Text('Promissórias', style: AppTextStyles.cardTitle),
-              subtitle: const Text(
-                'Vendas parceladas, saldos e vencimentos',
-                style: AppTextStyles.cardSubtitle,
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () =>
-                  Navigator.of(context).pushNamed(AppRoutes.promissorias),
-            ),
-          ),
+          const SeletorDia(),
+          const SizedBox(height: AppSpacing.sm),
+          const SaldoDiaSecao(),
+          const SizedBox(height: AppSpacing.lg),
+          const SectionHeader(titulo: 'Controles'),
           const SizedBox(height: AppSpacing.sm),
           Card(
             child: ListTile(
@@ -55,14 +48,21 @@ class FinanceiroScreen extends StatelessWidget {
               onTap: () => Navigator.of(context).pushNamed(AppRoutes.despesas),
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          const EmptyState(
-            icone: Icons.attach_money,
-            titulo: 'Apuração em construção',
-            descricao:
-                'A apuração de lucro e o saldo do dia chegam em uma '
-                'próxima task.',
+          const SizedBox(height: AppSpacing.sm),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: const Text('Promissórias', style: AppTextStyles.cardTitle),
+              subtitle: const Text(
+                'Vendas parceladas, saldos e vencimentos',
+                style: AppTextStyles.cardSubtitle,
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.promissorias),
+            ),
           ),
+          const SizedBox(height: AppSpacing.lg),
         ],
       ),
     );
