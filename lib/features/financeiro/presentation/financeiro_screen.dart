@@ -10,7 +10,8 @@ import 'saldo_dia_secao.dart';
 import 'seletor_dia.dart';
 
 /// Aba financeira (RF27, RF29): saldo do dia do vendedor (KAN-51) e
-/// acesso às despesas (KAN-50) e ao controle de promissórias (KAN-34).
+/// acesso ao painel (KAN-52), ao relatório semanal por linha (KAN-53),
+/// às despesas (KAN-50) e ao controle de promissórias (KAN-34).
 class FinanceiroScreen extends StatelessWidget {
   const FinanceiroScreen({super.key});
 
@@ -50,6 +51,23 @@ class FinanceiroScreen extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () =>
                   Navigator.of(context).pushNamed(AppRoutes.painelFinanceiro),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.stacked_bar_chart_outlined),
+              title: const Text(
+                'Relatório semanal',
+                style: AppTextStyles.cardTitle,
+              ),
+              subtitle: const Text(
+                'Resultado por linha de atendimento, com PDF',
+                style: AppTextStyles.cardSubtitle,
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.relatorioSemanal),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),

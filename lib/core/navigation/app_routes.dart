@@ -26,6 +26,10 @@ class AppRoutes {
   /// Painel financeiro por período (KAN-52), aberto pelo Financeiro.
   static const String painelFinanceiro = '/financeiro/painel';
 
+  /// Relatório semanal por linha de atendimento (KAN-53), aberto pelo
+  /// Financeiro.
+  static const String relatorioSemanal = '/financeiro/relatorio-semanal';
+
   /// Comprovante de um pagamento (KAN-36). Recebe um `ComprovanteArgs`
   /// (venda, parcela e pagamento) em `arguments`.
   static const String comprovante = '/comprovante';
