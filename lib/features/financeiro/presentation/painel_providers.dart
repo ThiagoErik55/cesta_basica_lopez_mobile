@@ -11,6 +11,7 @@ import '../data/despesa_model.dart';
 import '../data/despesa_repository.dart';
 import '../domain/agregacao_financeira.dart';
 import '../domain/periodo.dart';
+import '../domain/relatorio_linha.dart';
 import 'periodo_financeiro_provider.dart';
 
 /// Intervalo de leitura do painel: o período e o anterior, de uma vez,
@@ -62,12 +63,17 @@ class PosicaoRecebiveis {
     required this.aReceber,
     required this.emAtraso,
     required this.pagamentos,
+    this.pagamentosDosClientes = const [],
   });
 
   /// Em centavos.
   final int aReceber;
   final int emAtraso;
   final List<PagamentoModel> pagamentos;
+
+  /// Os mesmos pagamentos com o cliente da venda, para o relatório por
+  /// linha de atendimento (KAN-53) atribuir cada um à linha do cliente.
+  final List<PagamentoDeCliente> pagamentosDosClientes;
 }
 
 final posicaoRecebiveisProvider =
@@ -90,6 +96,15 @@ final posicaoRecebiveisProvider =
             for (final i in doVendedor)
               for (final p in i.promissoria.parcelas.where((p) => !p.deleted))
                 ...p.pagamentos,
+          ],
+          pagamentosDosClientes: [
+            for (final i in doVendedor)
+              for (final p in i.promissoria.parcelas.where((p) => !p.deleted))
+                for (final pg in p.pagamentos)
+                  PagamentoDeCliente(
+                    clienteId: i.venda.clienteId,
+                    pagamento: pg,
+                  ),
           ],
         ),
       );
